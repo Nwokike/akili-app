@@ -139,6 +139,12 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
             bgcolor=AppColors.SUCCESS,
         )
         page.snack_bar.open = True
+        
+        # Show interstitial ad
+        ad_service = page.data.get("ad_service")
+        if ad_service:
+            await ad_service.show_interstitial()
+            
         await navigate("/modules")
 
     # ── Header ───────────────────────────────────────────────

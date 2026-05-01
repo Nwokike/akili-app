@@ -144,6 +144,12 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
             ),
         ]
         result_content.visible = True
+        
+        # Show interstitial ad
+        ad_service = page.data.get("ad_service")
+        if ad_service:
+            await ad_service.show_interstitial()
+            
         page.update()
 
     async def _generate_exam(e=None):

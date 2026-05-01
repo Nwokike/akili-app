@@ -163,6 +163,12 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=12),
         ]
         result_content.visible = True
+        
+        # Show interstitial ad
+        ad_service = page.data.get("ad_service")
+        if ad_service:
+            await ad_service.show_interstitial()
+            
         page.update()
 
     async def _generate_quiz(e=None):
