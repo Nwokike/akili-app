@@ -1,7 +1,8 @@
-"""AI Tutor chat — text conversations with live status."""
+"""AI Tutor chat — text conversations with live status and real-time streaming."""
 
 import flet as ft
 
+from core.constants import AITaskType
 from core.state import state
 from core.theme import AppColors
 from services.ai_service import ai_service
@@ -40,7 +41,7 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         f"⚡ {state.credits_remaining}",
         size=13, weight=ft.FontWeight.BOLD, color=AppColors.ACCENT,
     )
-    # Status text shown in chat during AI processing
+    # Status text shown in chat during AI processing (searching, thinking)
     status_bubble = ft.Container(
         content=ft.Row(
             [
@@ -90,8 +91,12 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
 
         try:
             context = f"Student: {state.user_name or 'Student'}, Level: {state.education_level or 'unknown'}"
+            
+            full_response = ""
+            md_ref = None
 
-            response = await ai_service.chat(
+            # ── THE MAGIC: Real-time UI Streaming ──
+            async for chunk in ai_service.chat_stream(
                 messages=chat_messages,
                 system_prompt=(
                     f"You are Akili, a friendly AI tutor. {context}. "
@@ -99,13 +104,28 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
                     "Format with markdown for readability."
                 ),
                 search_query=text if len(text.split()) >= 3 else None,
+                task_type=AITaskType.GENERAL,  # Use the new Routing Constant
                 on_status=_show_status,
-            )
+            ):
+                # When the first chunk arrives, hide the "Thinking..." spinner and build the empty bubble
+                if md_ref is None:
+                    _hide_status()
+                    md_ref = _add_streaming_ai_bubble()
+                
+                # Append the chunk and update the screen
+                full_response += chunk
+                md_ref.value = full_response
+                page.update()
 
-            _hide_status()
-            content = response.get("content", "Sorry, I couldn't generate a response.")
-            chat_messages.append({"role": "assistant", "content": content})
-            _add_ai_bubble(content, response.get("_model", ""))
+            if not full_response:
+                if md_ref is None:
+                    _hide_status()
+                    md_ref = _add_streaming_ai_bubble()
+                full_response = "Sorry, I couldn't generate a response."
+                md_ref.value = full_response
+                page.update()
+
+            chat_messages.append({"role": "assistant", "content": full_response})
             await gamification_service.award_xp("tutor_question")
 
         except Exception as ex:
@@ -138,28 +158,20 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
             )
         )
 
-    def _add_ai_bubble(text: str, model: str = ""):
-        model_tag = ""
-        if model:
-            short = model.split("/")[-1][:20]
-            model_tag = f" • {short}"
-
+    def _add_streaming_ai_bubble() -> ft.Markdown:
+        """Creates an empty AI bubble and returns the Markdown reference so we can stream text into it."""
+        md_text = ft.Markdown(
+            "",
+            selectable=True,
+            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+            code_theme=ft.MarkdownCodeTheme.MONOKAI,
+        )
         messages_col.controls.append(
             ft.Container(
                 content=ft.Column(
                     [
-                        ft.Markdown(
-                            text,
-                            selectable=True,
-                            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
-                            code_theme=ft.MarkdownCodeTheme.MONOKAI,
-                        ),
-                        ft.Text(
-                            f"Akili{model_tag}",
-                            size=10,
-                            color=ft.Colors.ON_SURFACE_VARIANT,
-                            italic=True,
-                        ),
+                        md_text,
+                        ft.Text("Akili", size=10, color=ft.Colors.ON_SURFACE_VARIANT, italic=True),
                     ],
                     spacing=4,
                 ),
@@ -168,6 +180,8 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
                 bgcolor=ft.Colors.SURFACE_CONTAINER,
             )
         )
+        page.update()
+        return md_text
 
     def _add_system_msg(text: str):
         messages_col.controls.append(

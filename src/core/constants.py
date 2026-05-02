@@ -3,11 +3,12 @@
 # Cloudflare Worker endpoint
 API_GATEWAY = "https://akili-gateway.kiri.ng"
 
-# AI models (self-hosted gateway)
-MODELS = {
-    "primary": "gemma-4-31b-it",
-    "fallback": "qwen3.5-122b",
-}
+# AI Task Routing Types (Tells the Cloudflare Worker which AI array to use)
+class AITaskType:
+    GENERAL = "general"     # Standard AI Tutor chat, fast Q&A
+    TOOL = "tool"           # High-context tasks, syllabus creation, JSON parsing
+    VISION = "vision"       # Image analysis, OCR, whiteboard solving
+    AUDIO = "audio"         # Voice transcription (Whisper)
 
 # Credit system
 DAILY_CREDITS = 150
