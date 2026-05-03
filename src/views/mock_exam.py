@@ -1,6 +1,5 @@
-"""Mock exam — timed assessment with AI-generated questions across all modules."""
+"""Mock exam — timed assessment with AI-generated questions."""
 
-import json
 import random
 import time
 
@@ -26,7 +25,7 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
     score = {"correct": 0}
     start_time = {"t": 0}
 
-    # ── UI refs ──────────────────────────────────────────────
+
     timer_text = ft.Text("00:00", size=14, weight=ft.FontWeight.BOLD, color=AppColors.ACCENT)
     question_text = ft.Text("", size=16, weight=ft.FontWeight.W_500)
     question_num = ft.Text("", size=13, color=ft.Colors.ON_SURFACE_VARIANT)
@@ -89,7 +88,7 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
         feedback_text.visible = False
         next_btn.visible = False
 
-        # Update timer
+
         elapsed = int(time.time() - start_time["t"])
         mins, secs = divmod(elapsed, 60)
         timer_text.value = f"{mins:02d}:{secs:02d}"
@@ -145,7 +144,7 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
         ]
         result_content.visible = True
         
-        # Show interstitial ad
+
         ad_service = page.data.get("ad_service")
         if ad_service:
             await ad_service.show_interstitial()
@@ -165,7 +164,7 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
         page.update()
 
         subject = course.get("subject", "General")
-        level = course.get("level", state.education_level or "SS2")
+        level = course.get("level", state.education_level or "Grade 10")
 
         def _on_status(msg):
             if len(loading_col.controls) > 1:

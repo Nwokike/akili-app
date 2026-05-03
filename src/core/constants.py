@@ -1,28 +1,23 @@
-"""Application constants."""
 
-# Cloudflare Worker endpoint
 API_GATEWAY = "https://akili-gateway.kiri.ng"
 
-# AI Task Routing Types (Tells the Cloudflare Worker which AI array to use)
-class AITaskType:
-    GENERAL = "general"     # Standard AI Tutor chat, fast Q&A
-    TOOL = "tool"           # High-context tasks, syllabus creation, JSON parsing
-    VISION = "vision"       # Image analysis, OCR, whiteboard solving
-    AUDIO = "audio"         # Voice transcription (Whisper)
 
-# Credit system
+class AITaskType:
+    TEXT = "text"
+    VISION = "vision"
+    AUDIO = "audio"
+
 DAILY_CREDITS = 150
 CREDIT_COSTS = {
     "course_create": 15,
     "lesson_gen": 5,
-    "quiz": 0,  # FREE — never discourage practice
+    "quiz": 0,
     "mock_exam": 10,
     "tutor_question": 2,
-    "tutor_media": 3,  # Photo/voice adds 1 extra
+    "tutor_media": 3,
     "study_plan": 5,
 }
 
-# XP rewards
 XP_REWARDS = {
     "lesson_complete": 10,
     "quiz_pass": 25,
@@ -30,9 +25,9 @@ XP_REWARDS = {
     "mock_exam_complete": 100,
     "daily_streak": 15,
     "course_create": 20,
+    "tutor_question": 5,
 }
 
-# Gamification levels
 LEVELS = [
     {"name": "Freshman", "xp": 0, "icon": "🌱"},
     {"name": "Scholar", "xp": 200, "icon": "📚"},
@@ -42,20 +37,39 @@ LEVELS = [
     {"name": "Genius", "xp": 5000, "icon": "🧠"},
 ]
 
-# Education levels
 EDUCATION_LEVELS = [
-    {"id": "jss1", "name": "JSS 1", "group": "Junior Secondary"},
-    {"id": "jss2", "name": "JSS 2", "group": "Junior Secondary"},
-    {"id": "jss3", "name": "JSS 3", "group": "Junior Secondary"},
-    {"id": "ss1", "name": "SS 1", "group": "Senior Secondary"},
-    {"id": "ss2", "name": "SS 2", "group": "Senior Secondary"},
-    {"id": "ss3", "name": "SS 3", "group": "Senior Secondary"},
-    {"id": "uni_100", "name": "100 Level", "group": "University"},
-    {"id": "uni_200", "name": "200 Level", "group": "University"},
-    {"id": "uni_300", "name": "300 Level", "group": "University"},
-    {"id": "uni_400", "name": "400 Level", "group": "University"},
-    {"id": "highschool_9", "name": "Grade 9", "group": "High School"},
-    {"id": "highschool_10", "name": "Grade 10", "group": "High School"},
-    {"id": "highschool_11", "name": "Grade 11", "group": "High School"},
-    {"id": "highschool_12", "name": "Grade 12", "group": "High School"},
+    {"id": "middle_school", "name": "Middle School", "group": "Secondary"},
+    {"id": "grade_9", "name": "Grade 9", "group": "Secondary"},
+    {"id": "grade_10", "name": "Grade 10", "group": "Secondary"},
+    {"id": "grade_11", "name": "Grade 11", "group": "Secondary"},
+    {"id": "grade_12", "name": "Grade 12", "group": "Secondary"},
+    {"id": "freshman", "name": "University — Year 1", "group": "University"},
+    {"id": "sophomore", "name": "University — Year 2", "group": "University"},
+    {"id": "junior", "name": "University — Year 3", "group": "University"},
+    {"id": "senior", "name": "University — Year 4", "group": "University"},
+    {"id": "postgrad", "name": "Postgraduate", "group": "University"},
+    {"id": "self_learner", "name": "Self-learner", "group": "Other"},
+]
+
+POPULAR_SUBJECTS = [
+    "Mathematics",
+    "Physics",
+    "Chemistry",
+    "Biology",
+    "Computer Science",
+    "English Language",
+    "Literature",
+    "Economics",
+    "History",
+    "Geography",
+    "Accounting",
+    "Business Studies",
+    "Psychology",
+    "Philosophy",
+    "Sociology",
+    "Political Science",
+    "Art & Design",
+    "Music Theory",
+    "Statistics",
+    "Engineering",
 ]

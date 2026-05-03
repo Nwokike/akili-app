@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "aiosqlite>=0.22.1",
-    "ddgs>=9.14.1",
+    "beautifulsoup4>=4.14.3",
     "flet>=0.84.0",
     "flet-ads>=0.84.0",
     "flet-audio-recorder>=0.84.0",
@@ -44,6 +44,8 @@ usesCleartextTraffic = "true"
 "android.permission.ACCESS_NETWORK_STATE" = true
 "android.permission.CAMERA" = true
 "android.permission.RECORD_AUDIO" = true
+"android.permission.WAKE_LOCK" = true
+"android.permission.READ_MEDIA_IMAGES" = true
 
 [dependency-groups]
 dev = [
@@ -57,7 +59,7 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py313"
 
 [tool.ruff.lint]

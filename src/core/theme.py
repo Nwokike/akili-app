@@ -2,58 +2,48 @@ import flet as ft
 
 
 class AppColors:
-    """Akili brand palette — premium education aesthetic."""
 
-    # Branding
-    PRIMARY = "#6366F1"       # Indigo — trust, intelligence
-    SECONDARY = "#10B981"     # Emerald — growth, success
-    ACCENT = "#F59E0B"        # Amber — energy, achievement
-    TERTIARY = "#8B5CF6"      # Violet — creativity
+    PRIMARY = "#6366F1"
+    SECONDARY = "#10B981"
+    ACCENT = "#F59E0B"
+    TERTIARY = "#8B5CF6"
 
-    # Functional
     SUCCESS = "#10B981"
     WARNING = "#F59E0B"
     ERROR = "#EF4444"
-    INFO = "#3B82F6"
 
-    # Gradients (for premium glassmorphism)
     GRAD_START = "#6366F1"
     GRAD_END = "#8B5CF6"
 
-    # Dark mode
-    DARK_BG = "#0F172A"       # Slate 900
-    DARK_SURFACE = "#1E293B"  # Slate 800
-    DARK_CARD = "#1E293B"
-    DARK_TEXT = "#F8FAFC"
-    DARK_TEXT_DIM = "#94A3B8"
+    DARK_BG = "#000000"
+    DARK_SURFACE = "#111111"
+    DARK_CARD = "#1A1A1A"
+    DARK_TEXT = "#FFFFFF"
+    DARK_TEXT_DIM = "#888888"
 
-    # Light mode
-    LIGHT_BG = "#F8FAFC"
+    LIGHT_BG = "#FFFFFF"
     LIGHT_SURFACE = "#FFFFFF"
     LIGHT_CARD = "#FFFFFF"
-    LIGHT_TEXT = "#0F172A"
-    LIGHT_TEXT_DIM = "#64748B"
+    LIGHT_TEXT = "#111111"
+    LIGHT_TEXT_DIM = "#666666"
 
-    # XP / Gamification
     XP_GOLD = "#F59E0B"
     STREAK_FIRE = "#EF4444"
     BADGE_GLOW = "#8B5CF6"
 
-    # Subject colors (for course cards)
     SUBJECT_COLORS = [
-        "#6366F1",  # Indigo
-        "#10B981",  # Emerald
-        "#F59E0B",  # Amber
-        "#EF4444",  # Red
-        "#3B82F6",  # Blue
-        "#8B5CF6",  # Violet
-        "#EC4899",  # Pink
-        "#14B8A6",  # Teal
+        "#6366F1",
+        "#10B981",
+        "#F59E0B",
+        "#EF4444",
+        "#3B82F6",
+        "#8B5CF6",
+        "#EC4899",
+        "#14B8A6",
     ]
 
 
 class AppTheme:
-    """Theme configuration matching original Akili design."""
 
     @staticmethod
     def get_dark_theme() -> ft.Theme:
@@ -63,12 +53,10 @@ class AppTheme:
                 secondary=AppColors.SECONDARY,
                 tertiary=AppColors.TERTIARY,
                 surface=AppColors.DARK_BG,
-                surface_container=AppColors.DARK_SURFACE,
-                on_surface=AppColors.DARK_TEXT,
-                on_surface_variant=AppColors.DARK_TEXT_DIM,
+                on_surface="#FFFFFF",
+                surface_container="#111111",
+                surface_container_highest="#1A1A1A",
                 error=AppColors.ERROR,
-                on_primary=ft.Colors.WHITE,
-                on_secondary=ft.Colors.BLACK,
             ),
             font_family="Outfit",
         )
@@ -81,12 +69,10 @@ class AppTheme:
                 secondary=AppColors.SECONDARY,
                 tertiary=AppColors.TERTIARY,
                 surface=AppColors.LIGHT_BG,
-                surface_container=AppColors.LIGHT_SURFACE,
-                on_surface=AppColors.LIGHT_TEXT,
-                on_surface_variant=AppColors.LIGHT_TEXT_DIM,
+                on_surface="#111111",
+                surface_container="#F5F5F5",
+                surface_container_highest="#EEEEEE",
                 error=AppColors.ERROR,
-                on_primary=ft.Colors.WHITE,
-                on_secondary=ft.Colors.BLACK,
             ),
             font_family="Outfit",
         )

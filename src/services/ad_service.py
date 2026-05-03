@@ -1,6 +1,7 @@
-"""Ad service — KTV pattern. Mobile-only ads, desktop/web shows nothing."""
+
 
 import asyncio
+
 import flet as ft
 
 try:
@@ -20,7 +21,6 @@ class AdService:
         self._on_interstitial_close = None
 
     def _is_mobile(self) -> bool:
-        """Only show ads on mobile."""
         if not HAS_ADS:
             return False
         try:
@@ -49,7 +49,6 @@ class AdService:
         )
 
     def get_banner_ad(self) -> ft.Control:
-        """Dashboard banner ad — mobile only."""
         if not self._is_mobile():
             return ft.Container(width=0, height=0)
         try:
@@ -64,7 +63,6 @@ class AdService:
             return ft.Container(width=0, height=0)
 
     def get_anchor_banner(self) -> ft.Control:
-        """Small bottom banner — mobile only."""
         if not self._is_mobile():
             return ft.Container(width=0, height=0)
         try:
@@ -82,7 +80,6 @@ class AdService:
             return ft.Container(width=0, height=0)
 
     async def preload_interstitial(self, on_close=None):
-        """Preload interstitial ad for between-lesson display."""
         self._on_interstitial_close = on_close
         if not self._is_mobile():
             return
@@ -105,7 +102,6 @@ class AdService:
         await self.preload_interstitial(on_close=self._on_interstitial_close)
 
     async def show_interstitial(self) -> bool:
-        """Show interstitial between lessons. Returns True if shown."""
         if self.interstitial:
             try:
                 await self.interstitial.show()

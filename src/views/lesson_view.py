@@ -4,7 +4,6 @@ import json
 
 import flet as ft
 
-from core.constants import CREDIT_COSTS
 from core.state import state
 from core.theme import AppColors
 from database.manager import db_manager
@@ -14,7 +13,6 @@ from services.gamification import gamification_service
 
 
 async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
-    """Displays AI-generated lesson. Caches content after first generation."""
 
     module = state.current_module
     if not module:
@@ -24,7 +22,7 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
     topics = json.loads(module["topics_json"]) if module.get("topics_json") else []
     cached = module.get("lesson_cache")
 
-    # Content container
+
     lesson_content = ft.Column(spacing=16, expand=True)
     loading_indicator = ft.Column(
         [
@@ -39,13 +37,11 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
     error_text = ft.Text("", visible=False, color=AppColors.ERROR, size=13)
 
     async def _generate_lesson():
-        """Generate lesson content via AI or load from cache."""
         if cached:
             _render_lesson(cached)
             return
 
-        # Spend credits
-        cost = CREDIT_COSTS["lesson_gen"]
+
         ok = await credit_service.spend("lesson_gen")
         if not ok:
             error_text.value = "⚠️ Not enough credits. Resets at midnight."
@@ -57,7 +53,7 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
         page.update()
 
         try:
-            level = course.get("level", state.education_level or "SS 2")
+            level = course.get("level", state.education_level or "Grade 10")
             subject = course.get("subject", "General")
             topic_list = ", ".join(topics) if topics else module["title"]
 
@@ -81,7 +77,7 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
                 system_prompt=(
                     f"You are Akili, creating a lesson for a {level} student. "
                     f"Search the web for accurate curriculum content. "
-                    f"Be thorough but clear. Use examples relevant to Nigerian/African students."
+                    f"Be thorough but clear. Use relatable examples."
                 ),
             )
 
@@ -105,7 +101,6 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
             page.update()
 
     def _render_lesson(content: str):
-        """Render markdown lesson content."""
         lesson_content.controls.clear()
         lesson_content.controls.append(
             ft.Markdown(
@@ -117,11 +112,11 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
         )
         page.update()
 
-    # Mark module complete + unlock next
+
     async def _mark_complete(e):
         await db_manager.complete_module(module["id"])
 
-        # Unlock next module
+
         if course.get("id"):
             all_modules = await db_manager.get_modules(course["id"])
             for i, m in enumerate(all_modules):
@@ -129,7 +124,7 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
                     await db_manager.unlock_module(all_modules[i + 1]["id"])
                     break
 
-            # Update course progress
+
             completed = sum(1 for m in all_modules if m["is_completed"])
             pct = (completed / len(all_modules) * 100) if all_modules else 0
             await db_manager.update_course_progress(course["id"], pct)
@@ -140,15 +135,14 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
         )
         page.snack_bar.open = True
         
-        # Show interstitial ad
+
         ad_service = page.data.get("ad_service")
         if ad_service:
             await ad_service.show_interstitial()
             
         await navigate("/modules")
 
-    # ── Header ───────────────────────────────────────────────
-    color = AppColors.SUBJECT_COLORS[course.get("color_index", 0) % len(AppColors.SUBJECT_COLORS)]
+
 
     header = ft.Container(
         content=ft.Row(
@@ -181,7 +175,7 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
         padding=ft.Padding(8, 8, 16, 8),
     )
 
-    # ── Bottom actions ───────────────────────────────────────
+
     bottom = ft.Container(
         content=ft.Row(
             [
@@ -212,7 +206,7 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
         bgcolor=ft.Colors.SURFACE_CONTAINER,
     )
 
-    # Trigger generation
+
     page.run_task(_generate_lesson)
 
     return ft.View(

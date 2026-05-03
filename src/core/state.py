@@ -3,7 +3,6 @@ import flet as ft
 
 @ft.observable
 class AppState:
-    """Reactive app state — KTV @ft.observable pattern."""
 
     # User profile
     user_name: str = ""
@@ -30,14 +29,13 @@ class AppState:
     current_module: dict | None = None
 
     # Theme
-    theme_mode: ft.ThemeMode = ft.ThemeMode.DARK
+    theme_mode: ft.ThemeMode = ft.ThemeMode.LIGHT
 
     def __init__(self):
         self.current_course = None
         self.current_module = None
 
     def get_level_progress(self) -> float:
-        """Progress toward next level (0.0 to 1.0)."""
         from core.constants import LEVELS
 
         current_idx = 0

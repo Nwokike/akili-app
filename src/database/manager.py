@@ -1,12 +1,8 @@
-"""Database manager — KTV connection-pooling pattern.
-
-Single persistent connection with WAL mode for concurrent reads.
-All methods use the shared connection instead of opening new ones.
-"""
+"""Database manager — single persistent connection with WAL mode."""
 
 import json
 import os
-from datetime import date, datetime
+from datetime import date
 
 import aiosqlite
 
@@ -17,17 +13,17 @@ class DatabaseManager:
         self._conn = None
 
     async def _get_conn(self):
-        """Lazy-init persistent connection (KTV pattern)."""
         if self._conn is None:
             db_dir = os.path.dirname(self.db_path)
             if db_dir:
                 os.makedirs(db_dir, exist_ok=True)
             self._conn = await aiosqlite.connect(self.db_path)
+            self._conn.row_factory = aiosqlite.Row
             await self._conn.execute("PRAGMA journal_mode=WAL;")
+            await self._conn.execute("PRAGMA foreign_keys=ON;")
         return self._conn
 
     async def init_db(self):
-        """Create all tables."""
         db = await self._get_conn()
 
         await db.execute("""
@@ -113,11 +109,16 @@ class DatabaseManager:
         await db.execute("""
             CREATE TABLE IF NOT EXISTS chat_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                module_id INTEGER REFERENCES modules(id),
+                module_id INTEGER UNIQUE REFERENCES modules(id) ON DELETE CASCADE,
                 messages_json TEXT,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_modules_course ON modules(course_id)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_quiz_module ON quiz_attempts(module_id)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_credits_date ON credits_log(date)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_assessments_course ON assessments(course_id)")
 
         await db.execute("""
             CREATE TABLE IF NOT EXISTS settings (
@@ -126,9 +127,19 @@ class DatabaseManager:
             )
         """)
 
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS timetable (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                day TEXT NOT NULL,
+                time_slot TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                note TEXT DEFAULT ''
+            )
+        """)
+
         await db.commit()
 
-    # ── Settings (KTV pattern) ───────────────────────────────────
+
 
     async def set_setting(self, key: str, value: str):
         db = await self._get_conn()
@@ -143,11 +154,11 @@ class DatabaseManager:
             row = await cursor.fetchone()
             return row[0] if row else default
 
-    # ── Profile ──────────────────────────────────────────────────
+
 
     async def save_profile(self, name: str, education_level: str, avatar_index: int = 0):
         db = await self._get_conn()
-        await db.execute("DELETE FROM profile")  # Single user app
+        await db.execute("DELETE FROM profile")
         await db.execute(
             "INSERT INTO profile (name, education_level, avatar_index) VALUES (?, ?, ?)",
             (name, education_level, avatar_index),
@@ -164,7 +175,7 @@ class DatabaseManager:
                 return {"name": row[0], "education_level": row[1], "avatar_index": row[2]}
         return None
 
-    # ── Courses ──────────────────────────────────────────────────
+
 
     async def add_course(self, subject: str, level: str, curriculum_json: str, color_index: int = 0) -> int:
         db = await self._get_conn()
@@ -201,7 +212,7 @@ class DatabaseManager:
         await db.execute("DELETE FROM courses WHERE id = ?", (course_id,))
         await db.commit()
 
-    # ── Modules ──────────────────────────────────────────────────
+
 
     async def add_module(self, course_id: int, title: str, topics_json: str, order_num: int, unlocked: int = 0):
         db = await self._get_conn()
@@ -244,7 +255,7 @@ class DatabaseManager:
         )
         await db.commit()
 
-    # ── Quiz Attempts ────────────────────────────────────────────
+
 
     async def save_quiz_attempt(self, module_id: int, score: int, total: int, questions_json: str, passed: int):
         db = await self._get_conn()
@@ -262,7 +273,7 @@ class DatabaseManager:
             row = await cursor.fetchone()
             return {"total_attempts": row[0] or 0, "avg_score": row[1] or 0.0}
 
-    # ── Assessments (Mock Exams) ─────────────────────────────────
+
 
     async def save_assessment(self, course_id: int, score: int, total: int, grade: str, duration: int):
         db = await self._get_conn()
@@ -272,7 +283,7 @@ class DatabaseManager:
         )
         await db.commit()
 
-    # ── Credits ──────────────────────────────────────────────────
+
 
     async def get_credits_used_today(self) -> int:
         db = await self._get_conn()
@@ -292,21 +303,21 @@ class DatabaseManager:
         )
         await db.commit()
 
-    # ── Gamification ─────────────────────────────────────────────
+
 
     async def get_gamification(self) -> dict:
         db = await self._get_conn()
-        async with db.execute("SELECT * FROM gamification WHERE id = 1") as cursor:
+        async with db.execute(
+            "SELECT xp_total, level, current_streak, best_streak, badges_json, last_active_date "
+            "FROM gamification WHERE id = 1"
+        ) as cursor:
             row = await cursor.fetchone()
             if row:
                 return {
-                    "xp_total": row[1], "level": row[2], "current_streak": row[3],
-                    "best_streak": row[4], "badges_json": row[5], "last_active_date": row[6],
+                    "xp_total": row[0], "level": row[1], "current_streak": row[2],
+                    "best_streak": row[3], "badges_json": row[4], "last_active_date": row[5],
                 }
-        # Initialize if not exists
-        await db.execute(
-            "INSERT OR IGNORE INTO gamification (id) VALUES (1)"
-        )
+        await db.execute("INSERT OR IGNORE INTO gamification (id) VALUES (1)")
         await db.commit()
         return {
             "xp_total": 0, "level": "Freshman", "current_streak": 0,
@@ -324,7 +335,7 @@ class DatabaseManager:
         )
         await db.commit()
 
-    # ── Chat History ─────────────────────────────────────────────
+
 
     async def save_chat(self, module_id: int, messages: list):
         db = await self._get_conn()
@@ -346,12 +357,34 @@ class DatabaseManager:
                 return json.loads(row[0])
         return []
 
-    # ── Lifecycle ────────────────────────────────────────────────
+
 
     async def close(self):
         if self._conn:
             await self._conn.close()
             self._conn = None
+
+    async def get_timetable(self) -> list[dict]:
+        db = await self._get_conn()
+        async with db.execute(
+            "SELECT id, day, time_slot, subject, note FROM timetable ORDER BY day, time_slot"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [{"id": r[0], "day": r[1], "time_slot": r[2], "subject": r[3], "note": r[4]} for r in rows]
+
+    async def add_timetable_entry(self, day: str, time_slot: str, subject: str, note: str = "") -> int:
+        db = await self._get_conn()
+        cursor = await db.execute(
+            "INSERT INTO timetable (day, time_slot, subject, note) VALUES (?, ?, ?, ?)",
+            (day, time_slot, subject, note),
+        )
+        await db.commit()
+        return cursor.lastrowid
+
+    async def delete_timetable_entry(self, entry_id: int):
+        db = await self._get_conn()
+        await db.execute("DELETE FROM timetable WHERE id = ?", (entry_id,))
+        await db.commit()
 
 
 db_manager = DatabaseManager()

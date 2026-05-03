@@ -1,4 +1,4 @@
-"""Credit service — 150 daily credits, resets at midnight."""
+
 
 from datetime import date
 

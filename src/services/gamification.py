@@ -1,4 +1,4 @@
-"""Gamification service — XP, levels, streaks, badges."""
+
 
 import json
 from datetime import date, timedelta
@@ -6,7 +6,6 @@ from datetime import date, timedelta
 from core.constants import LEVELS, XP_REWARDS
 from core.state import state
 from database.manager import db_manager
-
 
 BADGE_DEFINITIONS = {
     "first_course": {"name": "First Course", "icon": "🎯", "desc": "Created your first course"},

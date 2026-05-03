@@ -1,5 +1,3 @@
-"""Akili v2 — main entry point. KTV routing pattern."""
-
 import flet as ft
 
 from core.state import state
@@ -13,9 +11,7 @@ from services.lifecycle import LifecycleManager
 
 async def main(page: ft.Page):
     page.title = "Akili"
-    page.favicon = "icon.png"
 
-    # Error handler
     def global_error_handler(e):
         page.snack_bar = ft.SnackBar(
             ft.Text("Something went wrong. Please try again."),
@@ -26,28 +22,22 @@ async def main(page: ft.Page):
 
     page.on_error = global_error_handler
 
-    # Fonts + Theme
     page.fonts = {
         "Outfit": "https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap"
     }
     page.theme = AppTheme.get_light_theme()
     page.dark_theme = AppTheme.get_dark_theme()
-    page.theme.font_family = "Outfit"
-    page.dark_theme.font_family = "Outfit"
-    page.theme_mode = ft.ThemeMode.DARK
+    page.theme_mode = ft.ThemeMode.LIGHT
     state.theme_mode = page.theme_mode
     page.padding = 0
     page.spacing = 0
 
-    # Services
     ad_service = AdService(page)
     page.run_task(ad_service.preload_interstitial)
-    lifecycle_manager = LifecycleManager(page)
+    _lifecycle = LifecycleManager(page)
 
-    # Database init
     await db_manager.init_db()
 
-    # Load saved state
     profile = await db_manager.get_profile()
     if profile:
         state.user_name = profile["name"]
@@ -57,15 +47,11 @@ async def main(page: ft.Page):
     else:
         state.is_onboarded = False
 
-    # Load credits + gamification
     await credit_service.refresh_credits()
     await gamification_service.load_state()
     await gamification_service.update_streak()
 
-    # Store ad_service on page for views to access
     page.data = {"ad_service": ad_service}
-
-    # ── Navigation ───────────────────────────────────────────
 
     async def navigate(route: str):
         page.route = route
@@ -74,7 +60,7 @@ async def main(page: ft.Page):
     async def route_change(e=None):
         page.views.clear()
 
-        if page.route == "/splash" or page.route == "/":
+        if page.route in ("/splash", "/"):
             from views.splash import build_splash_view
             page.views.append(build_splash_view(page, navigate))
 
@@ -117,6 +103,10 @@ async def main(page: ft.Page):
         elif page.route == "/settings":
             from views.settings_view import build_settings_view
             page.views.append(build_settings_view(page, navigate))
+
+        elif page.route == "/timetable":
+            from views.timetable_view import build_timetable_view
+            page.views.append(await build_timetable_view(page, navigate))
 
         page.update()
 

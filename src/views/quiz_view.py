@@ -1,7 +1,8 @@
-"""Quiz view — AI-generated MCQ with scoring, XP, and module pass/fail."""
+"""Quiz view — AI-generated MCQ with scoring and XP."""
 
 import json
 import random
+import re
 
 import flet as ft
 
@@ -25,7 +26,7 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
     selected_answer = {"value": None}
     score = {"correct": 0}
 
-    # ── UI refs ──────────────────────────────────────────────
+
     question_text = ft.Text("", size=16, weight=ft.FontWeight.W_500)
     question_num = ft.Text("", size=13, color=ft.Colors.ON_SURFACE_VARIANT)
     options_col = ft.Column(spacing=8)
@@ -164,7 +165,7 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         ]
         result_content.visible = True
         
-        # Show interstitial ad
+
         ad_service = page.data.get("ad_service")
         if ad_service:
             await ad_service.show_interstitial()
@@ -190,7 +191,7 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
                 "content": (
                     f"Generate exactly 5 multiple choice questions about: {module['title']}\n"
                     f"Topics: {topic_list}\n"
-                    f"Level: {course.get('level', state.education_level or 'SS2')}\n\n"
+                    f"Level: {course.get('level', state.education_level or 'Grade 10')}\n\n"
                     f"Return ONLY a JSON array. Each object must have:\n"
                     f'- "question": the question text\n'
                     f'- "options": array of exactly 4 answer choices\n'
@@ -225,7 +226,7 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
             loading_col.controls[1].value = "⚠️ Quiz generation failed. Try again."
             page.update()
 
-    # ── Header ───────────────────────────────────────────────
+
     header = ft.Container(
         content=ft.Row([
             ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda e: page.run_task(navigate, "/modules")),
@@ -255,7 +256,6 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
 
 
 def _parse_quiz_json(text: str) -> list[dict] | None:
-    import re
     if not text:
         return None
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()

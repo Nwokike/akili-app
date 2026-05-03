@@ -1,9 +1,8 @@
-"""App lifecycle manager — KTV pattern."""
+
 
 import flet as ft
 
 from core.state import state
-from database.manager import db_manager
 
 
 class LifecycleManager:
@@ -18,7 +17,6 @@ class LifecycleManager:
             state.is_loading = False
 
         elif state_str == "resume":
-            # Refresh credits on resume (might have crossed midnight)
             from services.credit_service import credit_service
             await credit_service.refresh_credits()
 

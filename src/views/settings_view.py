@@ -1,7 +1,6 @@
-"""Settings view — profile edit, theme toggle, data management."""
-
 import flet as ft
 
+from core.constants import EDUCATION_LEVELS
 from core.state import state
 from core.theme import AppColors
 from database.manager import db_manager
@@ -9,20 +8,22 @@ from database.manager import db_manager
 
 def build_settings_view(page: ft.Page, navigate) -> ft.View:
     name_field = ft.TextField(
-        value=state.user_name, label="Name", border_radius=12, filled=True,
-    )
-    level_dropdown = ft.Dropdown(
-        value=state.education_level, label="Education Level",
-        border_radius=12,
-        options=[
-            ft.dropdown.Option("JSS 1"), ft.dropdown.Option("JSS 2"), ft.dropdown.Option("JSS 3"),
-            ft.dropdown.Option("SS 1"), ft.dropdown.Option("SS 2"), ft.dropdown.Option("SS 3"),
-            ft.dropdown.Option("100 Level"), ft.dropdown.Option("200 Level"),
-            ft.dropdown.Option("300 Level"), ft.dropdown.Option("400 Level"),
-        ],
+        value=state.user_name, label="Name",
+        border_radius=12, filled=True,
     )
 
-    async def _save_profile(e):
+    level_options = [
+        ft.dropdown.Option(key=lvl["id"], text=lvl["name"])
+        for lvl in EDUCATION_LEVELS
+    ]
+    level_dropdown = ft.Dropdown(
+        value=state.education_level,
+        label="Education Level",
+        border_radius=12,
+        options=level_options,
+    )
+
+    async def _save(e):
         name = name_field.value.strip()
         level = level_dropdown.value
         if not name or not level:
@@ -31,7 +32,8 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
         state.education_level = level
         await db_manager.save_profile(name, level, state.avatar_index)
         page.snack_bar = ft.SnackBar(
-            ft.Text("✅ Profile saved!", color=ft.Colors.WHITE), bgcolor=AppColors.SUCCESS,
+            ft.Text("Saved", color=ft.Colors.WHITE),
+            bgcolor=AppColors.SUCCESS,
         )
         page.snack_bar.open = True
         page.update()
@@ -44,13 +46,50 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
         state.theme_mode = page.theme_mode
         page.update()
 
-    async def _clear_data(e):
-        # Confirmation via snackbar
+    async def _confirm_reset(e):
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Reset all data?"),
+            content=ft.Text(
+                "This will permanently delete all courses, "
+                "progress, and settings."
+            ),
+            actions=[
+                ft.TextButton(
+                    "Cancel",
+                    on_click=lambda e: _close(dialog),
+                ),
+                ft.FilledButton(
+                    "Delete Everything",
+                    on_click=lambda e: page.run_task(_reset),
+                    style=ft.ButtonStyle(
+                        bgcolor=AppColors.ERROR,
+                        color=ft.Colors.WHITE,
+                    ),
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.overlay.append(dialog)
+        dialog.open = True
+        page.update()
+
+    def _close(dialog):
+        dialog.open = False
+        page.update()
+
+    async def _reset(e=None):
+        for overlay in list(page.overlay):
+            if isinstance(overlay, ft.AlertDialog):
+                overlay.open = False
+        page.update()
+
         await db_manager.close()
         import os
         db_path = db_manager.db_path
-        if os.path.exists(db_path):
-            os.remove(db_path)
+        for f in [db_path, db_path + "-shm", db_path + "-wal"]:
+            if os.path.exists(f):
+                os.remove(f)
         db_manager._conn = None
         await db_manager.init_db()
         state.user_name = ""
@@ -60,65 +99,72 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
         state.credits_remaining = 150
         await navigate("/onboarding")
 
-    # ── Sections ─────────────────────────────────────────────
-    profile_section = ft.Container(
-        content=ft.Column([
-            ft.Text("Profile", size=16, weight=ft.FontWeight.BOLD),
-            name_field,
-            level_dropdown,
-            ft.Button(
-                "Save Profile", icon=ft.Icons.SAVE,
-                on_click=lambda e: page.run_task(_save_profile),
-                style=ft.ButtonStyle(bgcolor=AppColors.PRIMARY, color=ft.Colors.WHITE, shape=ft.RoundedRectangleBorder(radius=12)),
-            ),
-        ], spacing=12),
-        padding=20, border_radius=16, bgcolor=ft.Colors.SURFACE_CONTAINER,
-    )
-
-    appearance_section = ft.Container(
-        content=ft.Column([
-            ft.Text("Appearance", size=16, weight=ft.FontWeight.BOLD),
-            ft.Row([
-                ft.Text("Dark Mode", size=14, expand=True),
-                ft.Switch(
-                    value=page.theme_mode == ft.ThemeMode.DARK,
-                    on_change=_toggle_theme,
-                    active_color=AppColors.PRIMARY,
-                ),
-            ]),
-        ], spacing=12),
-        padding=20, border_radius=16, bgcolor=ft.Colors.SURFACE_CONTAINER,
-    )
-
-    about_section = ft.Container(
-        content=ft.Column([
-            ft.Text("About", size=16, weight=ft.FontWeight.BOLD),
-            ft.Text("Akili v2.0", size=14),
-            ft.Text("AI-powered educational platform", size=13, color=ft.Colors.ON_SURFACE_VARIANT),
-            ft.Text(f"Credits: {state.credits_remaining}/150", size=13, color=ft.Colors.ON_SURFACE_VARIANT),
-            ft.Text(f"XP: {state.xp_total} • Level: {state.level}", size=13, color=ft.Colors.ON_SURFACE_VARIANT),
-        ], spacing=6),
-        padding=20, border_radius=16, bgcolor=ft.Colors.SURFACE_CONTAINER,
-    )
-
-    danger_section = ft.Container(
-        content=ft.Column([
-            ft.Text("Danger Zone", size=16, weight=ft.FontWeight.BOLD, color=AppColors.ERROR),
-            ft.Button(
-                "Reset All Data", icon=ft.Icons.DELETE_FOREVER,
-                on_click=lambda e: page.run_task(_clear_data),
-                style=ft.ButtonStyle(bgcolor=AppColors.ERROR, color=ft.Colors.WHITE, shape=ft.RoundedRectangleBorder(radius=12)),
-            ),
-        ], spacing=12),
-        padding=20, border_radius=16, bgcolor=ft.Colors.SURFACE_CONTAINER,
-    )
-
     header = ft.Container(
         content=ft.Row([
-            ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda e: page.run_task(navigate, "/dashboard")),
+            ft.IconButton(
+                icon=ft.Icons.ARROW_BACK,
+                on_click=lambda e: page.run_task(navigate, "/dashboard"),
+            ),
             ft.Text("Settings", size=18, weight=ft.FontWeight.BOLD),
-        ], spacing=8),
-        padding=ft.Padding(8, 8, 16, 8),
+        ], spacing=4),
+        padding=ft.Padding(4, 8, 16, 8),
+    )
+
+    profile = ft.Container(
+        content=ft.Column([
+            name_field,
+            level_dropdown,
+            ft.FilledButton(
+                "Save",
+                on_click=lambda e: page.run_task(_save),
+                style=ft.ButtonStyle(
+                    bgcolor=AppColors.PRIMARY,
+                    color=ft.Colors.WHITE,
+                    shape=ft.RoundedRectangleBorder(radius=12),
+                ),
+            ),
+        ], spacing=12),
+        padding=20, border_radius=16,
+        bgcolor=ft.Colors.SURFACE_CONTAINER,
+    )
+
+    appearance = ft.Container(
+        content=ft.Row([
+            ft.Text("Dark mode", size=14, expand=True),
+            ft.Switch(
+                value=page.theme_mode == ft.ThemeMode.DARK,
+                on_change=_toggle_theme,
+                active_color=AppColors.PRIMARY,
+            ),
+        ]),
+        padding=20, border_radius=16,
+        bgcolor=ft.Colors.SURFACE_CONTAINER,
+    )
+
+    about = ft.Container(
+        content=ft.Column([
+            ft.Text("Akili v1.0", size=14, weight=ft.FontWeight.W_600),
+            ft.Text(
+                "AI-powered learning platform",
+                size=13, color=ft.Colors.ON_SURFACE_VARIANT,
+            ),
+        ], spacing=4),
+        padding=20, border_radius=16,
+        bgcolor=ft.Colors.SURFACE_CONTAINER,
+    )
+
+    danger = ft.Container(
+        content=ft.Column([
+            ft.Text("Danger Zone", size=14, weight=ft.FontWeight.W_600, color=AppColors.ERROR),
+            ft.OutlinedButton(
+                "Reset All Data",
+                icon=ft.Icons.DELETE_OUTLINE,
+                on_click=lambda e: page.run_task(_confirm_reset),
+                style=ft.ButtonStyle(color=AppColors.ERROR),
+            ),
+        ], spacing=12),
+        padding=20, border_radius=16,
+        bgcolor=ft.Colors.SURFACE_CONTAINER,
     )
 
     return ft.View(
@@ -128,7 +174,7 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
                 header,
                 ft.Container(
                     content=ft.Column([
-                        profile_section, appearance_section, about_section, danger_section,
+                        profile, appearance, about, danger,
                     ], spacing=16),
                     padding=ft.Padding(16, 8, 16, 16),
                     expand=True,
