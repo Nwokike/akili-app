@@ -1,127 +1,185 @@
+import json
+import re
 import flet as ft
 
-from core.constants import EDUCATION_LEVELS
+from core.constants import COUNTRIES, SYSTEM_TEMPLATES
 from core.state import state
-from core.theme import AppColors
+from core.theme import AppColors, AppStyles
 from database.manager import db_manager
+from services.ai_service import ai_service
 
 
 def build_onboarding_view(page: ft.Page, navigate) -> ft.View:
+    # State for selection
+    selection = {
+        "country": "Nigeria",
+        "system": "WAEC (West African)",
+        "level": ""
+    }
+
+    # UI Components
     name_field = ft.TextField(
-        label="Your name",
-        hint_text="e.g. Alex",
-        border_radius=12,
+        label="Full Name",
+        hint_text="e.g. John Sarki",
+        border_radius=AppStyles.RADIUS,
+        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+        border_color=ft.Colors.TRANSPARENT,
         text_size=16,
-        autofocus=True,
     )
 
-    selected_level = {"value": ""}
     error_text = ft.Text("", color=AppColors.ERROR, size=13)
+    status_text = ft.Text("Choose your country to see levels", size=13, color=ft.Colors.ON_SURFACE_VARIANT)
+    loading_ring = ft.ProgressRing(width=20, height=20, visible=False, stroke_width=2)
+    
+    level_list = ft.Column(spacing=4, scroll=ft.ScrollMode.AUTO, height=250)
 
-    level_list = ft.Column(spacing=0)
-
-    def _select_level(level_id: str):
-        selected_level["value"] = level_id
-        for ctrl in level_list.controls:
-            if hasattr(ctrl, "data") and ctrl.data:
-                is_sel = ctrl.data == level_id
-                ctrl.bgcolor = AppColors.PRIMARY if is_sel else ft.Colors.TRANSPARENT
-                if hasattr(ctrl.content, "controls"):
-                    for c in ctrl.content.controls:
-                        if isinstance(c, ft.Text):
-                            c.color = ft.Colors.WHITE if is_sel else ft.Colors.ON_SURFACE
-        error_text.value = ""
+    async def _detect_system(country_name: str):
+        status_text.value = f"Personalizing for {country_name}..."
+        loading_ring.visible = True
+        level_list.controls.clear()
         page.update()
 
-    current_group = ""
-    for lvl in EDUCATION_LEVELS:
-        if lvl["group"] != current_group:
-            current_group = lvl["group"]
-            level_list.controls.append(
-                ft.Container(
-                    content=ft.Text(
-                        lvl["group"], size=11,
-                        weight=ft.FontWeight.BOLD,
-                        color=ft.Colors.ON_SURFACE_VARIANT,
-                    ),
-                    padding=ft.Padding(16, 12, 0, 4),
-                )
-            )
-
-        level_list.controls.append(
-            ft.Container(
-                content=ft.Row([
-                    ft.Text(lvl["name"], size=14),
-                ]),
-                padding=ft.Padding(16, 12, 16, 12),
-                border_radius=8,
-                on_click=lambda e, lid=lvl["id"]: _select_level(lid),
-                data=lvl["id"],
-                ink=True,
-            )
+        prompt = (
+            f"Identify the educational system for {country_name}. "
+            "Return JSON with: 'system_name' (str), 'levels' (list of strings)."
         )
+        
+        try:
+            response = await ai_service.chat(
+                messages=[{"role": "user", "content": prompt}],
+                system_prompt="Return ONLY valid JSON. Be accurate."
+            )
+            data = _extract_json(response.get("content", ""))
+            
+            if data and "levels" in data:
+                selection["system"] = data.get("system_name", "Local System")
+                status_text.value = f"Detected: {selection['system']}"
+                
+                for lvl in data["levels"]:
+                    level_list.controls.append(
+                        ft.Container(
+                            content=ft.Row([ft.Text(lvl, size=15)]),
+                            padding=ft.Padding(16, 12, 16, 12),
+                            border_radius=AppStyles.RADIUS_SMALL,
+                            on_click=lambda e, v=lvl: _select_level(v),
+                            ink=True,
+                            data=lvl
+                        )
+                    )
+            else:
+                raise Exception("Invalid data")
+        except:
+            status_text.value = "Using standard Grade-based system"
+            for lvl in SYSTEM_TEMPLATES["K12"]["levels"]:
+                level_list.controls.append(
+                    ft.Container(
+                        content=ft.Row([ft.Text(lvl, size=15)]),
+                        padding=ft.Padding(16, 12, 16, 12),
+                        border_radius=AppStyles.RADIUS_SMALL,
+                        on_click=lambda e, v=lvl: _select_level(v),
+                        ink=True,
+                        data=lvl
+                    )
+                )
+        finally:
+            loading_ring.visible = False
+            page.update()
 
-    async def _continue(e):
+    def _select_level(val: str):
+        selection["level"] = val
+        for c in level_list.controls:
+            is_sel = c.data == val
+            c.bgcolor = ft.Colors.with_opacity(0.1, AppColors.PRIMARY) if is_sel else ft.Colors.TRANSPARENT
+            c.border = ft.Border.all(2, AppColors.PRIMARY) if is_sel else None
+        page.update()
+
+    def _on_country_change(e):
+        country = country_dropdown.value
+        selection["country"] = country
+        page.run_task(_detect_system, country)
+
+    country_dropdown = ft.Dropdown(
+        label="Your Country",
+        options=[ft.dropdown.Option(c) for c in COUNTRIES],
+        value="Nigeria",
+        border_radius=AppStyles.RADIUS,
+        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+        border_color=ft.Colors.TRANSPARENT,
+    )
+    country_dropdown.on_change = _on_country_change
+
+    async def _on_complete(e):
         name = name_field.value.strip()
-        if not name:
-            error_text.value = "Please enter your name"
-            page.update()
-            return
-        if not selected_level["value"]:
-            error_text.value = "Please select your education level"
+        country = selection["country"]
+        level = selection["level"]
+        
+        if not name or not level:
+            error_text.value = "Please enter your name and select a level"
             page.update()
             return
 
-        await db_manager.save_profile(name, selected_level["value"])
         state.user_name = name
-        state.education_level = selected_level["value"]
+        state.country = country
+        state.education_level = level
+        state.education_system = selection["system"]
         state.is_onboarded = True
-        await db_manager.set_setting("is_onboarded", "true")
+        
+        await db_manager.save_profile(name, level)
         await navigate("/dashboard")
+
+    # Initial detection
+    page.run_task(_detect_system, "Nigeria")
 
     return ft.View(
         route="/onboarding",
-        controls=[ft.SafeArea(
-            ft.Container(
-                content=ft.Column([
-                    ft.Container(height=24),
-                    ft.Image(src="/icon.png", width=56, height=56),
-                    ft.Container(height=12),
-                    ft.Text("welcome", size=22, weight=ft.FontWeight.W_500),
-                    ft.Text(
-                        "set up your profile to get started",
-                        size=14, color=ft.Colors.ON_SURFACE_VARIANT,
-                    ),
-                    ft.Container(height=24),
-                    name_field,
-                    ft.Container(height=20),
-                    ft.Text("Education Level", size=15, weight=ft.FontWeight.W_600),
-                    ft.Container(
-                        content=level_list,
-                        height=240,
-                        border_radius=12,
-                        bgcolor=ft.Colors.SURFACE_CONTAINER,
-                    ),
-                    ft.Container(height=8),
-                    error_text,
-                    ft.Container(expand=True),
-                    ft.FilledButton(
-                        content=ft.Text("Get Started", size=16, weight=ft.FontWeight.W_600),
-                        on_click=lambda e: page.run_task(_continue, e),
-                        style=ft.ButtonStyle(
-                            bgcolor=AppColors.PRIMARY,
-                            color=ft.Colors.WHITE,
-                            shape=ft.RoundedRectangleBorder(radius=12),
-                            padding=ft.Padding(0, 16, 0, 16),
+        controls=[
+            ft.SafeArea(
+                ft.Container(
+                    content=ft.Column([
+                        ft.Container(height=20),
+                        ft.Image(src="/icon.png", width=64, height=64),
+                        ft.Text("Personalize Akili", size=26, weight=ft.FontWeight.BOLD),
+                        ft.Text("Tell us about your learning journey.", size=15, color=ft.Colors.ON_SURFACE_VARIANT),
+                        ft.Container(height=20),
+                        name_field,
+                        ft.Container(height=10),
+                        country_dropdown,
+                        ft.Container(height=20),
+                        ft.Row([loading_ring, status_text], alignment=ft.MainAxisAlignment.START),
+                        ft.Container(
+                            content=level_list,
+                            border_radius=AppStyles.RADIUS_SMALL,
+                            bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.ON_SURFACE),
+                            padding=5,
                         ),
-                        width=float("inf"),
-                    ),
-                    ft.Container(height=20),
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                   scroll=ft.ScrollMode.AUTO),
-                padding=24, expand=True,
-            ),
-            expand=True,
-        )],
-        padding=0,
+                        error_text,
+                        ft.Container(height=10),
+                        ft.FilledButton(
+                            "Get Started",
+                            on_click=lambda e: page.run_task(_on_complete, e),
+                            style=ft.ButtonStyle(
+                                bgcolor=AppColors.PRIMARY, color=ft.Colors.WHITE,
+                                shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
+                                padding=24,
+                            ),
+                            width=float("inf"),
+                        ),
+                        ft.Container(height=40),
+                    ], scroll=ft.ScrollMode.AUTO, spacing=10),
+                    padding=20,
+                ),
+            )
+        ],
+        bgcolor=ft.Colors.SURFACE,
     )
+
+def _extract_json(text: str) -> dict | None:
+    if not text: return None
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    try: return json.loads(text)
+    except: pass
+    match = re.search(r"\{[\s\S]*\}", text)
+    if match:
+        try: return json.loads(match.group(0))
+        except: pass
+    return None

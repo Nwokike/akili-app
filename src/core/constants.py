@@ -1,11 +1,11 @@
 
 API_GATEWAY = "https://akili-gateway.kiri.ng"
 
-
 class AITaskType:
     TEXT = "text"
     VISION = "vision"
     AUDIO = "audio"
+    TUTOR = "tutor"
 
 DAILY_CREDITS = 150
 CREDIT_COSTS = {
@@ -37,39 +37,50 @@ LEVELS = [
     {"name": "Genius", "xp": 5000, "icon": "🧠"},
 ]
 
-EDUCATION_LEVELS = [
-    {"id": "middle_school", "name": "Middle School", "group": "Secondary"},
-    {"id": "grade_9", "name": "Grade 9", "group": "Secondary"},
-    {"id": "grade_10", "name": "Grade 10", "group": "Secondary"},
-    {"id": "grade_11", "name": "Grade 11", "group": "Secondary"},
-    {"id": "grade_12", "name": "Grade 12", "group": "Secondary"},
-    {"id": "freshman", "name": "University — Year 1", "group": "University"},
-    {"id": "sophomore", "name": "University — Year 2", "group": "University"},
-    {"id": "junior", "name": "University — Year 3", "group": "University"},
-    {"id": "senior", "name": "University — Year 4", "group": "University"},
-    {"id": "postgrad", "name": "Postgraduate", "group": "University"},
-    {"id": "self_learner", "name": "Self-learner", "group": "Other"},
-]
+# System Templates (Used as fallbacks or suggestions)
+SYSTEM_TEMPLATES = {
+    "WAEC": {
+        "name": "West African (WAEC)",
+        "levels": ["JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"]
+    },
+    "K12": {
+        "name": "International (Grade 1-12)",
+        "levels": [f"Grade {i}" for i in range(1, 13)]
+    },
+    "UK": {
+        "name": "UK / Commonwealth (Year 1-13)",
+        "levels": [f"Year {i}" for i in range(1, 14)]
+    },
+    "CBC": {
+        "name": "Competency-Based (Kenya/Others)",
+        "levels": [f"Grade {i}" for i in range(1, 13)]
+    },
+    "UNI": {
+        "name": "University / Higher Ed",
+        "levels": ["Year 1", "Year 2", "Year 3", "Year 4", "Masters", "PhD"]
+    }
+}
 
-POPULAR_SUBJECTS = [
-    "Mathematics",
-    "Physics",
-    "Chemistry",
-    "Biology",
-    "Computer Science",
-    "English Language",
-    "Literature",
-    "Economics",
-    "History",
-    "Geography",
-    "Accounting",
-    "Business Studies",
-    "Psychology",
-    "Philosophy",
-    "Sociology",
-    "Political Science",
-    "Art & Design",
-    "Music Theory",
-    "Statistics",
-    "Engineering",
-]
+# Source: ISO 3166-1 alpha-2 (Simplified list of all countries)
+COUNTRIES = sorted([
+    "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria",
+    "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan",
+    "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia",
+    "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo", "Costa Rica",
+    "Croatia", "Cuba", "Cyprus", "Czechia", "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt",
+    "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Finland", "France", "Gabon",
+    "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti",
+    "Holy See", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy",
+    "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon",
+    "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives",
+    "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia",
+    "Montenegro", "Morocco", "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua",
+    "Niger", "Nigeria", "North Korea", "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine State", "Panama",
+    "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda",
+    "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal",
+    "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea",
+    "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Tajikistan", "Tanzania",
+    "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda",
+    "Ukraine", "United Arab Emirates", "United Kingdom", "United States of America", "Uruguay", "Uzbekistan", "Vanuatu", "Venezuela", "Vietnam", "Yemen",
+    "Zambia", "Zimbabwe"
+])

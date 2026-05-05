@@ -13,9 +13,9 @@ async def build_quiz_history_view(page: ft.Page, navigate) -> ft.View:
                 icon=ft.Icons.ARROW_BACK,
                 on_click=lambda e: page.run_task(navigate, "/progress"),
             ),
-            ft.Text("Quiz History", size=18, weight=ft.FontWeight.BOLD),
+            ft.Text("Quiz History", size=20, weight=ft.FontWeight.BOLD),
         ], spacing=4),
-        padding=ft.Padding(4, 8, 16, 8),
+        padding=ft.Padding(4, 16, 16, 8),
     )
 
     history_col = ft.Column(spacing=0, expand=True)

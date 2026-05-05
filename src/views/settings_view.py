@@ -2,14 +2,14 @@ import flet as ft
 
 from core.constants import EDUCATION_LEVELS
 from core.state import state
-from core.theme import AppColors
+from core.theme import AppColors, AppStyles
 from database.manager import db_manager
 
 
 def build_settings_view(page: ft.Page, navigate) -> ft.View:
     name_field = ft.TextField(
         value=state.user_name, label="Name",
-        border_radius=12, filled=True,
+        border_radius=AppStyles.RADIUS, filled=True,
     )
 
     level_options = [
@@ -19,7 +19,7 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
     level_dropdown = ft.Dropdown(
         value=state.education_level,
         label="Education Level",
-        border_radius=12,
+        border_radius=AppStyles.RADIUS,
         options=level_options,
     )
 
@@ -32,50 +32,28 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
         state.education_level = level
         await db_manager.save_profile(name, level, state.avatar_index)
         page.snack_bar = ft.SnackBar(
-            ft.Text("Saved", color=ft.Colors.WHITE),
+            ft.Text("Settings saved successfully", color=ft.Colors.WHITE),
             bgcolor=AppColors.SUCCESS,
         )
         page.snack_bar.open = True
         page.update()
 
     def _toggle_theme(e):
-        if page.theme_mode == ft.ThemeMode.DARK:
-            page.theme_mode = ft.ThemeMode.LIGHT
-        else:
-            page.theme_mode = ft.ThemeMode.DARK
+        page.theme_mode = ft.ThemeMode.DARK if page.theme_mode == ft.ThemeMode.LIGHT else ft.ThemeMode.LIGHT
         state.theme_mode = page.theme_mode
         page.update()
-
-    def _invite_friends(e):
-        # Client-side workaround for referrals
-        page.set_clipboard("Join me on Akili! Download the app: https://akili.app/download")
-        page.show_snack_bar(
-            ft.SnackBar(
-                content=ft.Text("Invite link copied to clipboard!"),
-                bgcolor=ft.Colors.BLACK
-            )
-        )
 
     async def _confirm_reset(e):
         dialog = ft.AlertDialog(
             modal=True,
             title=ft.Text("Reset all data?"),
-            content=ft.Text(
-                "This will permanently delete all courses, "
-                "progress, and settings."
-            ),
+            content=ft.Text("This will permanently delete all courses, progress, and settings."),
             actions=[
-                ft.TextButton(
-                    "Cancel",
-                    on_click=lambda e: _close(dialog),
-                ),
+                ft.TextButton("Cancel", on_click=lambda e: _close(dialog)),
                 ft.FilledButton(
                     "Delete Everything",
                     on_click=lambda e: page.run_task(_reset),
-                    style=ft.ButtonStyle(
-                        bgcolor=AppColors.ERROR,
-                        color=ft.Colors.WHITE,
-                    ),
+                    style=ft.ButtonStyle(bgcolor=AppColors.ERROR, color=ft.Colors.WHITE),
                 ),
             ],
             actions_alignment=ft.MainAxisAlignment.END,
@@ -111,107 +89,97 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
 
     header = ft.Container(
         content=ft.Row([
-            ft.IconButton(
-                icon=ft.Icons.ARROW_BACK,
-                on_click=lambda e: page.run_task(navigate, "/dashboard"),
-            ),
-            ft.Text("Settings", size=18, weight=ft.FontWeight.BOLD),
+            ft.IconButton(icon=ft.Icons.ARROW_BACK_ROUNDED, on_click=lambda e: page.run_task(navigate, "/dashboard")),
+            ft.Text("Settings", size=20, weight=ft.FontWeight.BOLD),
         ], spacing=4),
         padding=ft.Padding(4, 8, 16, 8),
     )
 
-    profile = ft.Container(
-        content=ft.Column([
+    def setting_card(title, content):
+        return ft.Container(
+            content=ft.Column([
+                ft.Text(title, size=14, weight=ft.FontWeight.BOLD, color=AppColors.PRIMARY),
+                content,
+            ], spacing=12),
+            padding=20,
+            border_radius=AppStyles.RADIUS,
+            bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.WHITE),
+            border=ft.Border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.WHITE)),
+        )
+
+    profile_card = setting_card(
+        "Profile Info",
+        ft.Column([
             name_field,
             level_dropdown,
             ft.FilledButton(
-                "Save",
+                "Save Changes",
                 on_click=lambda e: page.run_task(_save),
                 style=ft.ButtonStyle(
                     bgcolor=AppColors.PRIMARY,
                     color=ft.Colors.WHITE,
-                    shape=ft.RoundedRectangleBorder(radius=12),
+                    shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
                 ),
+                width=float("inf"),
             ),
-        ], spacing=12),
-        padding=20, border_radius=16,
-        bgcolor=ft.Colors.SURFACE_CONTAINER,
+        ], spacing=16)
     )
 
-    appearance = ft.Container(
-        content=ft.Row([
-            ft.Text("Dark mode", size=14, expand=True),
+    appearance_card = setting_card(
+        "Appearance",
+        ft.Row([
+            ft.Text("Dark Mode", size=16, expand=True),
             ft.Switch(
                 value=page.theme_mode == ft.ThemeMode.DARK,
                 on_change=_toggle_theme,
                 active_color=AppColors.PRIMARY,
             ),
-        ]),
-        padding=20, border_radius=16,
-        bgcolor=ft.Colors.SURFACE_CONTAINER,
-    )
-    
-    # --- New Referrals & Premium Section ---
-    extras = ft.Container(
-        content=ft.Column([
-            ft.Text("Extras", size=14, weight=ft.FontWeight.W_600),
-            ft.OutlinedButton(
-                "Invite Friends",
-                icon=ft.Icons.GROUP_ADD,
-                on_click=_invite_friends,
-                style=ft.ButtonStyle(color=ft.Colors.BLACK, shape=ft.RoundedRectangleBorder(radius=4))
-            ),
-            ft.OutlinedButton(
-                "Get Premium",
-                icon=ft.Icons.STAR,
-                on_click=lambda e: page.run_task(navigate, "/premium"),
-                style=ft.ButtonStyle(color=ft.Colors.BLACK, shape=ft.RoundedRectangleBorder(radius=4))
-            ),
-        ], spacing=12),
-        padding=20, border_radius=16,
-        bgcolor=ft.Colors.SURFACE_CONTAINER,
+        ])
     )
 
-    about = ft.Container(
-        content=ft.Column([
-            ft.Text("Akili v1.0", size=14, weight=ft.FontWeight.W_600),
-            ft.Text(
-                "AI-powered learning platform",
-                size=13, color=ft.Colors.ON_SURFACE_VARIANT,
-            ),
-        ], spacing=4),
-        padding=20, border_radius=16,
-        bgcolor=ft.Colors.SURFACE_CONTAINER,
-    )
-
-    danger = ft.Container(
-        content=ft.Column([
-            ft.Text("Danger Zone", size=14, weight=ft.FontWeight.W_600, color=AppColors.ERROR),
+    danger_card = setting_card(
+        "Account Actions",
+        ft.Column([
             ft.OutlinedButton(
                 "Reset All Data",
-                icon=ft.Icons.DELETE_OUTLINE,
+                icon=ft.Icons.DELETE_OUTLINE_ROUNDED,
                 on_click=lambda e: page.run_task(_confirm_reset),
-                style=ft.ButtonStyle(color=AppColors.ERROR),
+                style=ft.ButtonStyle(color=AppColors.ERROR, shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS)),
+                width=float("inf"),
             ),
-        ], spacing=12),
-        padding=20, border_radius=16,
-        bgcolor=ft.Colors.SURFACE_CONTAINER,
+        ], spacing=8)
     )
 
     return ft.View(
         route="/settings",
-        controls=[ft.SafeArea(
-            ft.Column([
-                header,
+        controls=[
+            ft.SafeArea(
                 ft.Container(
                     content=ft.Column([
-                        profile, appearance, extras, about, danger,
-                    ], spacing=16),
-                    padding=ft.Padding(16, 8, 16, 16),
+                        header,
+                        ft.Container(
+                            content=ft.Column([
+                                profile_card,
+                                appearance_card,
+                                danger_card,
+                                ft.Container(
+                                    content=ft.Text("Akili v1.0 \u00b7 Built with Flet", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+                                    alignment=ft.Alignment.CENTER,
+                                    margin=ft.Margin(0, 20, 0, 0),
+                                ),
+                            ], spacing=16, scroll=ft.ScrollMode.AUTO),
+                            padding=20, expand=True,
+                        ),
+                    ], spacing=0, expand=True),
+                    gradient=ft.LinearGradient(
+                        begin=ft.Alignment.TOP_LEFT,
+                        end=ft.Alignment.BOTTOM_RIGHT,
+                        colors=[ft.Colors.SURFACE, ft.Colors.with_opacity(0.1, AppColors.PRIMARY)],
+                    ),
                     expand=True,
                 ),
-            ], expand=True, scroll=ft.ScrollMode.AUTO, spacing=0),
-            expand=True,
-        )],
+                expand=True,
+            )
+        ],
         padding=0, spacing=0,
     )

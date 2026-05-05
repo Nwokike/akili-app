@@ -24,7 +24,7 @@ async def main(page: ft.Page):
     page.on_error = global_error_handler
 
     page.fonts = {
-        "Outfit": "https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap"
+        "Inter": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
     }
     page.theme = AppTheme.get_light_theme()
     page.dark_theme = AppTheme.get_dark_theme()

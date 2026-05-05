@@ -1,4 +1,5 @@
 import flet as ft
+from core.theme import AppColors, AppStyles
 
 def get_premium_preview_view(page: ft.Page):
     # We use a PageView for the swipeable carousel
@@ -15,7 +16,7 @@ def get_premium_preview_view(page: ft.Page):
                     alignment=ft.MainAxisAlignment.CENTER,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     controls=[
-                        ft.Icon(ft.Icons.BLOCK, size=80, color=ft.Colors.BLACK),
+                        ft.Icon(ft.Icons.BLOCK, size=80, color=ft.Colors.ON_SURFACE),
                         ft.Text("ad-free experience", size=24, weight=ft.FontWeight.BOLD),
                         ft.Text("focus on learning without any interruptions.", text_align=ft.TextAlign.CENTER),
                     ]
@@ -28,7 +29,7 @@ def get_premium_preview_view(page: ft.Page):
                     alignment=ft.MainAxisAlignment.CENTER,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     controls=[
-                        ft.Icon(ft.Icons.BOLT, size=80, color=ft.Colors.BLACK),
+                        ft.Icon(ft.Icons.BOLT, size=80, color=ft.Colors.ON_SURFACE),
                         ft.Text("10x daily credits", size=24, weight=ft.FontWeight.BOLD),
                         ft.Text("take more mock exams and quizzes every single day.", text_align=ft.TextAlign.CENTER),
                     ]
@@ -41,18 +42,18 @@ def get_premium_preview_view(page: ft.Page):
                     alignment=ft.MainAxisAlignment.CENTER,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     controls=[
-                        ft.Icon(ft.Icons.ROCKET_LAUNCH, size=80, color=ft.Colors.BLACK),
+                        ft.Icon(ft.Icons.ROCKET_LAUNCH, size=80, color=ft.Colors.ON_SURFACE),
                         ft.Text("premium is coming soon", size=24, weight=ft.FontWeight.BOLD),
                         ft.Container(height=20),
                         ft.FilledButton(
                             "notify me when it's ready",
                             style=ft.ButtonStyle(
-                                bgcolor=ft.Colors.BLACK, 
+                                bgcolor=AppColors.PRIMARY, 
                                 color=ft.Colors.WHITE,
-                                shape=ft.RoundedRectangleBorder(radius=4) # Minimalist sharp edges
+                                shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS)
                             ),
                             on_click=lambda e: page.show_snack_bar(
-                                ft.SnackBar(content=ft.Text("you're on the list!"), bgcolor=ft.Colors.BLACK)
+                                ft.SnackBar(content=ft.Text("you're on the list!"))
                             )
                         )
                     ]
@@ -63,10 +64,8 @@ def get_premium_preview_view(page: ft.Page):
 
     return ft.View(
         route="/premium",
-        bgcolor=ft.Colors.WHITE,
         appbar=ft.AppBar(
-            title=ft.Text("premium", color=ft.Colors.BLACK),
-            bgcolor=ft.Colors.WHITE,
+            title=ft.Text("premium"),
         ),
         controls=[
             ft.SafeArea(

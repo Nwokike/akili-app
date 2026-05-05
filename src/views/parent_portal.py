@@ -1,5 +1,6 @@
 import flet as ft
 from database.manager import db_manager
+from core.theme import AppColors, AppStyles
 
 async def get_parent_portal_view(page: ft.Page):
     DEFAULT_PIN = "1234"
@@ -12,8 +13,8 @@ async def get_parent_portal_view(page: ft.Page):
         visible=False,
         expand=True,
         controls=[
-            ft.Text("student overview", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK),
-            ft.Divider(color=ft.Colors.BLACK),
+            ft.Text("student overview", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE),
+            ft.Divider(color=ft.Colors.OUTLINE),
             ft.Row(
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 controls=[
@@ -43,9 +44,10 @@ async def get_parent_portal_view(page: ft.Page):
         password=True,
         can_reveal_password=True,
         hint_text="enter 4-digit pin",
-        border_color=ft.Colors.BLACK,
-        cursor_color=ft.Colors.BLACK,
+        border_color=ft.Colors.ON_SURFACE,
+        cursor_color=ft.Colors.ON_SURFACE,
         text_align=ft.TextAlign.CENTER,
+        border_radius=AppStyles.RADIUS,
         width=200
     )
     
@@ -66,17 +68,17 @@ async def get_parent_portal_view(page: ft.Page):
         alignment=ft.MainAxisAlignment.CENTER,
         expand=True,
         controls=[
-            ft.Icon(ft.Icons.LOCK_OUTLINE, size=60, color=ft.Colors.BLACK),
-            ft.Text("parental gate", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.BLACK),
+            ft.Icon(ft.Icons.LOCK_OUTLINE, size=60, color=ft.Colors.ON_SURFACE),
+            ft.Text("parental gate", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.ON_SURFACE),
             ft.Container(height=10),
             pin_input,
             error_text,
             ft.FilledButton(
                 "unlock",
                 style=ft.ButtonStyle(
-                    bgcolor=ft.Colors.BLACK, 
+                    bgcolor=AppColors.PRIMARY, 
                     color=ft.Colors.WHITE,
-                    shape=ft.RoundedRectangleBorder(radius=4)
+                    shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS_SMALL)
                 ),
                 on_click=verify_pin
             )
@@ -85,10 +87,8 @@ async def get_parent_portal_view(page: ft.Page):
 
     return ft.View(
         route="/parent",
-        bgcolor=ft.Colors.WHITE,
         appbar=ft.AppBar(
-            title=ft.Text("parent portal", color=ft.Colors.BLACK),
-            bgcolor=ft.Colors.WHITE,
+            title=ft.Text("parent portal"),
         ),
         controls=[
             ft.SafeArea(

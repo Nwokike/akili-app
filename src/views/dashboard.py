@@ -2,7 +2,7 @@ import flet as ft
 
 from components.notification_bell import NotificationBell
 from core.state import state
-from core.theme import AppColors
+from core.theme import AppColors, AppStyles
 from database.manager import db_manager
 
 
@@ -21,75 +21,65 @@ async def build_dashboard_view(page: ft.Page, navigate) -> ft.View:
     has_unread = await db_manager.check_daily_reward_eligibility()
     notification_bell = NotificationBell(page, has_unread=has_unread)
 
-    header = ft.Container(
+    # ── Header (Minimalist) ──────────────────────────────────────────
+    header_row = ft.Container(
         content=ft.Row([
-            ft.IconButton(
-                icon=ft.Icons.BRIGHTNESS_6, icon_size=20,
-                on_click=_toggle_theme,
-            ),
-            ft.Container(expand=True),
-            ft.Image(src="/icon.png", width=36, height=36),
-            ft.Container(expand=True),
-            notification_bell,
-            ft.PopupMenuButton(
-                content=ft.Container(
-                    content=ft.Text(
-                        (state.user_name or "?")[0].upper(),
-                        size=14, weight=ft.FontWeight.BOLD,
-                        color=ft.Colors.WHITE,
-                    ),
-                    width=34, height=34, border_radius=10,
-                    gradient=ft.LinearGradient(
-                        colors=[AppColors.PRIMARY, AppColors.TERTIARY],
-                    ),
-                    alignment=ft.Alignment.CENTER,
+            ft.Row([
+                ft.Image(src="/icon.png", width=36, height=36),
+                # Removed "Akili" text
+            ], spacing=10),
+            ft.Row([
+                ft.Container(
+                    content=ft.Row([
+                        ft.Icon(ft.Icons.SAVINGS_ROUNDED, size=14, color=AppColors.ACCENT),
+                        ft.Text(f"{state.credits_remaining}", size=12, weight=ft.FontWeight.W_600),
+                    ], spacing=4),
+                    padding=ft.Padding(12, 6, 12, 6),
+                    bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.ON_SURFACE),
+                    border_radius=AppStyles.RADIUS_SMALL,
                 ),
-                items=[
-                    ft.PopupMenuItem(
-                        content=ft.Text(state.user_name or "Student"),
-                    ),
-                    ft.PopupMenuItem(
-                        content=ft.Text(f"Credits: {state.credits_remaining}",
-                                        size=12, color=ft.Colors.ON_SURFACE_VARIANT),
-                    ),
-                    ft.PopupMenuItem(),
-                    ft.PopupMenuItem(
-                        content=ft.Text("Timetable"),
-                        icon=ft.Icons.CALENDAR_TODAY_OUTLINED,
-                        on_click=lambda e: page.run_task(navigate, "/timetable"),
-                    ),
-                    ft.PopupMenuItem(
-                        content=ft.Text("Settings"),
-                        icon=ft.Icons.SETTINGS_OUTLINED,
-                        on_click=lambda e: page.run_task(navigate, "/settings"),
-                    ),
-                ],
-            ),
-        ]),
-        padding=ft.Padding(12, 8, 12, 8),
+                notification_bell,
+                ft.IconButton(
+                    icon=ft.Icons.BRIGHTNESS_6_ROUNDED, icon_size=20,
+                    on_click=_toggle_theme,
+                ),
+                ft.IconButton(
+                    icon=ft.Icons.SETTINGS_ROUNDED, icon_size=20,
+                    on_click=lambda e: page.run_task(navigate, "/settings"),
+                ),
+            ], spacing=4),
+        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+        padding=ft.Padding(16, 12, 16, 12),
     )
 
-    courses_col = ft.Column(spacing=0, expand=True)
+    # ── Welcome Section (Minimalist) ────────────────────────────────
+    welcome_section = ft.Container(
+        content=ft.Column([
+            ft.Text("Hello,", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
+            ft.Text(state.user_name or "Student", size=32, weight=ft.FontWeight.BOLD),
+        ], spacing=2),
+        padding=ft.Padding(24, 10, 24, 20),
+    )
+
+    courses_col = ft.Column(spacing=16, expand=True)
 
     if not courses:
         courses_col.controls.append(
             ft.Container(
                 content=ft.Column([
                     ft.Container(height=80),
-                    ft.Text("No courses yet", size=17, weight=ft.FontWeight.W_600),
-                    ft.Container(height=4),
-                    ft.Text(
-                        "Tap + to create your first course",
-                        size=13, color=ft.Colors.ON_SURFACE_VARIANT,
-                    ),
-                    ft.Container(height=20),
+                    ft.Icon(ft.Icons.MENU_BOOK_ROUNDED, size=48, color=ft.Colors.ON_SURFACE_VARIANT),
+                    ft.Container(height=12),
+                    ft.Text("Your courses will appear here", size=16, weight=ft.FontWeight.W_500),
+                    ft.Container(height=24),
                     ft.FilledButton(
-                        "Create Course",
-                        icon=ft.Icons.ADD,
+                        "Create Your First Course",
+                        icon=ft.Icons.ADD_ROUNDED,
                         on_click=lambda e: page.run_task(navigate, "/create-course"),
                         style=ft.ButtonStyle(
                             bgcolor=AppColors.PRIMARY, color=ft.Colors.WHITE,
-                            shape=ft.RoundedRectangleBorder(radius=12),
+                            shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
+                            padding=20,
                         ),
                     ),
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=0),
@@ -109,41 +99,36 @@ async def build_dashboard_view(page: ft.Page, navigate) -> ft.View:
 
             card = ft.Container(
                 content=ft.Row([
-                    ft.Container(width=4, height=44, border_radius=2, bgcolor=color),
-                    ft.Container(width=14),
+                    ft.Container(width=4, height=40, border_radius=2, bgcolor=color),
+                    ft.Container(width=16),
                     ft.Column([
-                        ft.Text(
-                            course["subject"], size=15, weight=ft.FontWeight.W_600,
-                            max_lines=1, overflow=ft.TextOverflow.ELLIPSIS,
-                        ),
-                        ft.Text(
-                            f"{course['level']} · {pct:.0f}%",
-                            size=12, color=ft.Colors.ON_SURFACE_VARIANT,
-                        ),
+                        ft.Text(course["subject"], size=16, weight=ft.FontWeight.BOLD),
+                        ft.Text(f"{course['level']} \u00b7 {pct:.0f}% Complete", size=13, color=ft.Colors.ON_SURFACE_VARIANT),
                     ], spacing=2, expand=True),
-                    ft.Icon(ft.Icons.CHEVRON_RIGHT, color=ft.Colors.ON_SURFACE_VARIANT, size=20),
+                    ft.Icon(ft.Icons.CHEVRON_RIGHT_ROUNDED, color=ft.Colors.ON_SURFACE_VARIANT, size=20),
                 ], vertical_alignment=ft.CrossAxisAlignment.CENTER),
-                padding=ft.Padding(16, 14, 12, 14),
+                padding=ft.Padding(20, 20, 20, 20),
+                border_radius=AppStyles.RADIUS,
+                bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
                 on_click=lambda e, c=course: page.run_task(on_tap, e, c),
-                ink=True,
             )
             courses_col.controls.append(card)
-            courses_col.controls.append(ft.Divider(height=1, thickness=0.3))
 
     section_header = ft.Container(
         content=ft.Row([
-            ft.Text("My Courses", size=16, weight=ft.FontWeight.BOLD),
+            ft.Text("My Learning Path", size=18, weight=ft.FontWeight.BOLD),
             ft.IconButton(
-                icon=ft.Icons.ADD, icon_size=22,
+                icon=ft.Icons.ADD_ROUNDED, icon_size=24,
+                icon_color=AppColors.PRIMARY,
                 on_click=lambda e: page.run_task(navigate, "/create-course"),
-                tooltip="New Course",
             ),
         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-        padding=ft.Padding(20, 4, 12, 4),
+        padding=ft.Padding(24, 16, 12, 4),
     )
 
     content = ft.Column([
-        header,
+        header_row,
+        welcome_section,
         section_header,
         ft.Container(
             content=courses_col,
@@ -160,25 +145,14 @@ async def build_dashboard_view(page: ft.Page, navigate) -> ft.View:
 
     nav_bar = ft.NavigationBar(
         destinations=[
-            ft.NavigationBarDestination(
-                icon=ft.Icons.SCHOOL_OUTLINED, selected_icon=ft.Icons.SCHOOL,
-                label="Courses",
-            ),
-            ft.NavigationBarDestination(
-                icon=ft.Icons.CHAT_OUTLINED, selected_icon=ft.Icons.CHAT,
-                label="Tutor",
-            ),
-            ft.NavigationBarDestination(
-                icon=ft.Icons.INSIGHTS_OUTLINED, selected_icon=ft.Icons.INSIGHTS,
-                label="Progress",
-            ),
-            ft.NavigationBarDestination(
-                icon=ft.Icons.SETTINGS_OUTLINED, selected_icon=ft.Icons.SETTINGS,
-                label="Settings",
-            ),
+            ft.NavigationBarDestination(icon=ft.Icons.HOME_OUTLINED, selected_icon=ft.Icons.HOME, label="Home"),
+            ft.NavigationBarDestination(icon=ft.Icons.CHAT_OUTLINED, selected_icon=ft.Icons.CHAT, label="Tutor"),
+            ft.NavigationBarDestination(icon=ft.Icons.INSIGHTS_OUTLINED, selected_icon=ft.Icons.INSIGHTS, label="Progress"),
+            ft.NavigationBarDestination(icon=ft.Icons.SETTINGS_OUTLINED, selected_icon=ft.Icons.SETTINGS, label="Settings"),
         ],
         selected_index=0,
         on_change=lambda e: page.run_task(_nav_change, e),
+        bgcolor=ft.Colors.SURFACE,
     )
 
     banner = ad_service.get_banner_ad() if ad_service else ft.Container()
@@ -187,9 +161,13 @@ async def build_dashboard_view(page: ft.Page, navigate) -> ft.View:
         route="/dashboard",
         controls=[
             ft.SafeArea(
-                ft.Column([content, banner], expand=True, spacing=0),
+                ft.Container(
+                    content=ft.Column([content, banner], expand=True, spacing=0),
+                    bgcolor=ft.Colors.SURFACE,
+                    expand=True,
+                ),
                 expand=True,
-            ),
+            )
         ],
         navigation_bar=nav_bar,
         padding=0, spacing=0,

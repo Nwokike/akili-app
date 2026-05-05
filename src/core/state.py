@@ -7,8 +7,13 @@ class AppState:
     # User profile
     user_name: str = ""
     education_level: str = ""
+    education_system: str = "International (Grade 1-12)"
+    country: str = "Global"
     avatar_index: int = 0
     is_onboarded: bool = False
+    
+    # Metadata for dynamic UI (subjects, etc.)
+    metadata: dict = {}
 
     # Loading / status
     is_loading: bool = False
@@ -34,6 +39,7 @@ class AppState:
     def __init__(self):
         self.current_course = None
         self.current_module = None
+        self.metadata = {}
 
     def get_level_progress(self) -> float:
         from core.constants import LEVELS

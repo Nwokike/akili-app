@@ -1,6 +1,6 @@
 import flet as ft
 
-from core.theme import AppColors
+from core.theme import AppColors, AppStyles
 from database.manager import db_manager
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -10,16 +10,16 @@ async def build_timetable_view(page: ft.Page, navigate) -> ft.View:
     entries = await db_manager.get_timetable()
 
     day_field = ft.Dropdown(
-        label="Day", border_radius=12,
+        label="Day", border_radius=AppStyles.RADIUS,
         options=[ft.dropdown.Option(d) for d in DAYS],
     )
     time_field = ft.TextField(
         label="Time", hint_text="e.g. 09:00",
-        border_radius=12, filled=True,
+        border_radius=AppStyles.RADIUS, filled=True,
     )
     subject_field = ft.TextField(
         label="Subject", hint_text="e.g. Mathematics",
-        border_radius=12, filled=True,
+        border_radius=AppStyles.RADIUS, filled=True,
     )
 
     entries_col = ft.Column(spacing=0, expand=True)
@@ -100,9 +100,9 @@ async def build_timetable_view(page: ft.Page, navigate) -> ft.View:
                 icon=ft.Icons.ARROW_BACK,
                 on_click=lambda e: page.run_task(navigate, "/dashboard"),
             ),
-            ft.Text("Timetable", size=18, weight=ft.FontWeight.BOLD),
+            ft.Text("Timetable", size=20, weight=ft.FontWeight.BOLD),
         ], spacing=4),
-        padding=ft.Padding(4, 8, 16, 8),
+        padding=ft.Padding(4, 16, 16, 8),
     )
 
     add_section = ft.Container(

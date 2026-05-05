@@ -2,45 +2,67 @@ import flet as ft
 
 
 class AppColors:
-
-    PRIMARY = "#6366F1"
-    SECONDARY = "#10B981"
-    ACCENT = "#F59E0B"
-    TERTIARY = "#8B5CF6"
-
-    SUCCESS = "#10B981"
+    # Premium Bluish Minimalist Palette
+    # Using Indigo/Royal Blue which is "absolutely beautiful"
+    PRIMARY = "#4F46E5"    # Indigo 600
+    SECONDARY = "#4338CA"  # Indigo 700
+    ACCENT = "#F59E0B"     # Amber 500 (Gold) - Complements Blue
+    
+    SUCCESS = "#10B981"    # Emerald (Keep for success)
     WARNING = "#F59E0B"
     ERROR = "#EF4444"
 
-    GRAD_START = "#6366F1"
-    GRAD_END = "#8B5CF6"
-
+    # Minimalist Backgrounds
     DARK_BG = "#000000"
-    DARK_SURFACE = "#111111"
-    DARK_CARD = "#1A1A1A"
+    DARK_SURFACE = "#0A0A0A"
+    DARK_CARD = "#121212"
     DARK_TEXT = "#FFFFFF"
-    DARK_TEXT_DIM = "#888888"
+    DARK_TEXT_DIM = "#A0A0A0"
 
     LIGHT_BG = "#FFFFFF"
-    LIGHT_SURFACE = "#FFFFFF"
+    LIGHT_SURFACE = "#F8F8F8"
     LIGHT_CARD = "#FFFFFF"
-    LIGHT_TEXT = "#111111"
+    LIGHT_TEXT = "#000000"
     LIGHT_TEXT_DIM = "#666666"
 
-    XP_GOLD = "#F59E0B"
-    STREAK_FIRE = "#EF4444"
-    BADGE_GLOW = "#8B5CF6"
-
+    # Subject colors - muted and harmonious with blue
     SUBJECT_COLORS = [
-        "#6366F1",
-        "#10B981",
-        "#F59E0B",
-        "#EF4444",
-        "#3B82F6",
-        "#8B5CF6",
-        "#EC4899",
-        "#14B8A6",
+        "#4F46E5", "#06B6D4", "#10B981", "#EAB308",
+        "#8B5CF6", "#EC4899", "#F97316", "#3B82F6",
     ]
+
+
+class AppStyles:
+    RADIUS_SMALL = 8
+    RADIUS = 12
+    RADIUS_LARGE = 20
+
+    PADDING_SMALL = 8
+    PADDING = 16
+    PADDING_LARGE = 24
+
+    @staticmethod
+    def glass_card(content: ft.Control, blur_sigma: int = 10):
+        """Minimalist glass card - very subtle."""
+        return ft.Container(
+            content=content,
+            bgcolor=ft.Colors.with_opacity(0.02, ft.Colors.WHITE),
+            blur=ft.Blur(blur_sigma, blur_sigma, ft.BlurTileMode.MIRROR),
+            border=ft.Border.all(1, ft.Colors.with_opacity(0.05, ft.Colors.WHITE)),
+            border_radius=AppStyles.RADIUS,
+        )
+
+    @staticmethod
+    def brand_gradient():
+        """Very subtle background gradient using the new blue."""
+        return ft.LinearGradient(
+            begin=ft.Alignment.TOP_CENTER,
+            end=ft.Alignment.BOTTOM_CENTER,
+            colors=[
+                ft.Colors.with_opacity(0.05, AppColors.PRIMARY),
+                ft.Colors.TRANSPARENT,
+            ],
+        )
 
 
 class AppTheme:
@@ -51,14 +73,15 @@ class AppTheme:
             color_scheme=ft.ColorScheme(
                 primary=AppColors.PRIMARY,
                 secondary=AppColors.SECONDARY,
-                tertiary=AppColors.TERTIARY,
                 surface=AppColors.DARK_BG,
-                on_surface="#FFFFFF",
-                surface_container="#111111",
-                surface_container_highest="#1A1A1A",
+                on_surface=AppColors.DARK_TEXT,
+                surface_container=AppColors.DARK_SURFACE,
+                surface_container_highest=AppColors.DARK_CARD,
+                on_surface_variant=AppColors.DARK_TEXT_DIM,
                 error=AppColors.ERROR,
             ),
-            font_family="Outfit",
+            font_family="Inter",
+            visual_density=ft.VisualDensity.COMFORTABLE,
         )
 
     @staticmethod
@@ -67,12 +90,13 @@ class AppTheme:
             color_scheme=ft.ColorScheme(
                 primary=AppColors.PRIMARY,
                 secondary=AppColors.SECONDARY,
-                tertiary=AppColors.TERTIARY,
                 surface=AppColors.LIGHT_BG,
-                on_surface="#111111",
-                surface_container="#F5F5F5",
-                surface_container_highest="#EEEEEE",
+                on_surface=AppColors.LIGHT_TEXT,
+                surface_container=AppColors.LIGHT_SURFACE,
+                surface_container_highest=AppColors.LIGHT_CARD,
+                on_surface_variant=AppColors.LIGHT_TEXT_DIM,
                 error=AppColors.ERROR,
             ),
-            font_family="Outfit",
+            font_family="Inter",
+            visual_density=ft.VisualDensity.COMFORTABLE,
         )

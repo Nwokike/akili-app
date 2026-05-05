@@ -1,6 +1,6 @@
 import flet as ft
 
-from core.theme import AppColors
+from core.theme import AppColors, AppStyles
 
 
 def build_premium_view(page: ft.Page, navigate) -> ft.View:
@@ -10,9 +10,9 @@ def build_premium_view(page: ft.Page, navigate) -> ft.View:
                 icon=ft.Icons.ARROW_BACK,
                 on_click=lambda e: page.run_task(navigate, "/dashboard"),
             ),
-            ft.Text("Akili Premium", size=18, weight=ft.FontWeight.BOLD),
+            ft.Text("Akili Premium", size=20, weight=ft.FontWeight.BOLD),
         ], spacing=4),
-        padding=ft.Padding(4, 8, 16, 8),
+        padding=ft.Padding(4, 16, 16, 8),
     )
 
     content = ft.Column([
@@ -41,9 +41,9 @@ def build_premium_view(page: ft.Page, navigate) -> ft.View:
                 ft.Container(
                     content=ft.Column([
                         ft.Text("$4.99 / month", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                        ft.Text("Coming Soon!", size=14, color=ft.Colors.WHITE70),
+                        ft.Text("Coming Soon!", size=14, color=ft.Colors.WHITE_70),
                     ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                    padding=24, border_radius=16,
+                    padding=24, border_radius=AppStyles.RADIUS,
                     gradient=ft.LinearGradient(
                         colors=[AppColors.PRIMARY, AppColors.TERTIARY]
                     ),
