@@ -137,9 +137,7 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
             if not full_response:
                 if md_ref is None:
                     _hide_status()
-                    md_ref = _add_ai_bubble()
-                full_response = "Sorry, I couldn't generate a response."
-                md_ref.value = full_response
+                    _add_system_msg("No response received from Akili.")
                 page.update()
 
             chat_messages.append({"role": "assistant", "content": full_response})

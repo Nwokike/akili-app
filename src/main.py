@@ -1,3 +1,4 @@
+import asyncio
 import flet as ft
 
 from core.state import state
@@ -14,8 +15,8 @@ async def main(page: ft.Page):
 
     def global_error_handler(e):
         page.snack_bar = ft.SnackBar(
-            ft.Text("Something went wrong. Please try again."),
-            bgcolor="#EF4444",
+            ft.Text("something went wrong. please try again.", color=ft.Colors.WHITE),
+            bgcolor=ft.Colors.BLACK,
         )
         page.snack_bar.open = True
         page.update()
@@ -32,11 +33,36 @@ async def main(page: ft.Page):
     page.padding = 0
     page.spacing = 0
 
+    # --- Offline Mode Indicator ---
+    offline_banner = ft.Banner(
+        bgcolor=ft.Colors.BLACK,
+        content=ft.Text("offline mode: progress is saved locally.", color=ft.Colors.WHITE),
+        leading=ft.Icon(ft.Icons.WIFI_OFF, color=ft.Colors.WHITE),
+        actions=[ft.TextButton("dismiss", style=ft.ButtonStyle(color=ft.Colors.WHITE), on_click=lambda e: page.close_banner())],
+    )
+    page.banner = offline_banner
+
+    async def handle_connectivity_change(e: ft.ConnectivityChangeEvent):
+        # 'none' indicates no network connection
+        is_offline = any(r.value == "none" for r in e.connectivity)
+        if is_offline and not page.banner.open:
+            page.show_banner(offline_banner)
+        elif not is_offline and page.banner.open:
+            page.close_banner()
+
+    # Initialize Connectivity without adding it to page.overlay
+    connectivity = ft.Connectivity()
+    connectivity.on_change = handle_connectivity_change
+
+    # --- Service Initialization ---
     ad_service = AdService(page)
     page.run_task(ad_service.preload_interstitial)
     _lifecycle = LifecycleManager(page)
 
     await db_manager.init_db()
+    
+    # Update login timestamp for the daily notification bell
+    await db_manager.update_login_timestamp()
 
     profile = await db_manager.get_profile()
     if profile:
@@ -107,6 +133,19 @@ async def main(page: ft.Page):
         elif page.route == "/timetable":
             from views.timetable_view import build_timetable_view
             page.views.append(await build_timetable_view(page, navigate))
+            
+        # --- New Routes ---
+        elif page.route == "/premium":
+            from views.premium_preview import get_premium_preview_view
+            page.views.append(get_premium_preview_view(page))
+            
+        elif page.route == "/history":
+            from views.quiz_history import get_quiz_history_view
+            page.views.append(await get_quiz_history_view(page)) # Added await
+            
+        elif page.route == "/parent":
+            from views.parent_portal import get_parent_portal_view
+            page.views.append(await get_parent_portal_view(page)) # Added await
 
         page.update()
 

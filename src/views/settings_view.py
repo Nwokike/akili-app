@@ -46,6 +46,16 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
         state.theme_mode = page.theme_mode
         page.update()
 
+    def _invite_friends(e):
+        # Client-side workaround for referrals
+        page.set_clipboard("Join me on Akili! Download the app: https://akili.app/download")
+        page.show_snack_bar(
+            ft.SnackBar(
+                content=ft.Text("Invite link copied to clipboard!"),
+                bgcolor=ft.Colors.BLACK
+            )
+        )
+
     async def _confirm_reset(e):
         dialog = ft.AlertDialog(
             modal=True,
@@ -140,6 +150,27 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
         padding=20, border_radius=16,
         bgcolor=ft.Colors.SURFACE_CONTAINER,
     )
+    
+    # --- New Referrals & Premium Section ---
+    extras = ft.Container(
+        content=ft.Column([
+            ft.Text("Extras", size=14, weight=ft.FontWeight.W_600),
+            ft.OutlinedButton(
+                "Invite Friends",
+                icon=ft.Icons.GROUP_ADD,
+                on_click=_invite_friends,
+                style=ft.ButtonStyle(color=ft.Colors.BLACK, shape=ft.RoundedRectangleBorder(radius=4))
+            ),
+            ft.OutlinedButton(
+                "Get Premium",
+                icon=ft.Icons.STAR,
+                on_click=lambda e: page.run_task(navigate, "/premium"),
+                style=ft.ButtonStyle(color=ft.Colors.BLACK, shape=ft.RoundedRectangleBorder(radius=4))
+            ),
+        ], spacing=12),
+        padding=20, border_radius=16,
+        bgcolor=ft.Colors.SURFACE_CONTAINER,
+    )
 
     about = ft.Container(
         content=ft.Column([
@@ -174,7 +205,7 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
                 header,
                 ft.Container(
                     content=ft.Column([
-                        profile, appearance, about, danger,
+                        profile, appearance, extras, about, danger,
                     ], spacing=16),
                     padding=ft.Padding(16, 8, 16, 16),
                     expand=True,

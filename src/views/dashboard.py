@@ -1,5 +1,6 @@
 import flet as ft
 
+from components.notification_bell import NotificationBell
 from core.state import state
 from core.theme import AppColors
 from database.manager import db_manager
@@ -17,6 +18,9 @@ async def build_dashboard_view(page: ft.Page, navigate) -> ft.View:
         state.theme_mode = page.theme_mode
         page.update()
 
+    has_unread = await db_manager.check_daily_reward_eligibility()
+    notification_bell = NotificationBell(page, has_unread=has_unread)
+
     header = ft.Container(
         content=ft.Row([
             ft.IconButton(
@@ -26,6 +30,7 @@ async def build_dashboard_view(page: ft.Page, navigate) -> ft.View:
             ft.Container(expand=True),
             ft.Image(src="/icon.png", width=36, height=36),
             ft.Container(expand=True),
+            notification_bell,
             ft.PopupMenuButton(
                 content=ft.Container(
                     content=ft.Text(

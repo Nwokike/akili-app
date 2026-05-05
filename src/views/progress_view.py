@@ -72,6 +72,25 @@ async def build_progress_view(page: ft.Page, navigate) -> ft.View:
         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, expand=True),
     ])
 
+    # --- New Navigation Actions ---
+    action_buttons = ft.Row(
+        controls=[
+            ft.OutlinedButton(
+                "Quiz History",
+                icon=ft.Icons.HISTORY,
+                on_click=lambda e: page.run_task(navigate, "/history"),
+                style=ft.ButtonStyle(color=ft.Colors.BLACK, shape=ft.RoundedRectangleBorder(radius=4))
+            ),
+            ft.OutlinedButton(
+                "Parent Portal",
+                icon=ft.Icons.FAMILY_RESTROOM,
+                on_click=lambda e: page.run_task(navigate, "/parent"),
+                style=ft.ButtonStyle(color=ft.Colors.BLACK, shape=ft.RoundedRectangleBorder(radius=4))
+            )
+        ],
+        alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+    )
+
     badge_row = ft.Row(
         [
             ft.Container(
@@ -118,6 +137,8 @@ async def build_progress_view(page: ft.Page, navigate) -> ft.View:
                         ft.Divider(height=1, thickness=0.5),
                         ft.Text("Quiz Performance", size=15, weight=ft.FontWeight.W_600),
                         quiz_section,
+                        ft.Container(height=10),
+                        action_buttons, # Inserted here
                         ft.Divider(height=1, thickness=0.5),
                         ft.Text(f"Badges ({len(earned)}/{len(badges)})", size=15, weight=ft.FontWeight.W_600),
                         badge_row,

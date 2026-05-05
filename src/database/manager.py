@@ -2,7 +2,7 @@
 
 import json
 import os
-from datetime import date
+from datetime import date, datetime
 
 import aiosqlite
 
@@ -139,8 +139,6 @@ class DatabaseManager:
 
         await db.commit()
 
-
-
     async def set_setting(self, key: str, value: str):
         db = await self._get_conn()
         await db.execute(
@@ -153,8 +151,6 @@ class DatabaseManager:
         async with db.execute("SELECT value FROM settings WHERE key = ?", (key,)) as cursor:
             row = await cursor.fetchone()
             return row[0] if row else default
-
-
 
     async def save_profile(self, name: str, education_level: str, avatar_index: int = 0):
         db = await self._get_conn()
@@ -174,8 +170,6 @@ class DatabaseManager:
             if row:
                 return {"name": row[0], "education_level": row[1], "avatar_index": row[2]}
         return None
-
-
 
     async def add_course(self, subject: str, level: str, curriculum_json: str, color_index: int = 0) -> int:
         db = await self._get_conn()
@@ -211,8 +205,6 @@ class DatabaseManager:
         await db.execute("DELETE FROM modules WHERE course_id = ?", (course_id,))
         await db.execute("DELETE FROM courses WHERE id = ?", (course_id,))
         await db.commit()
-
-
 
     async def add_module(self, course_id: int, title: str, topics_json: str, order_num: int, unlocked: int = 0):
         db = await self._get_conn()
@@ -255,8 +247,6 @@ class DatabaseManager:
         )
         await db.commit()
 
-
-
     async def save_quiz_attempt(self, module_id: int, score: int, total: int, questions_json: str, passed: int):
         db = await self._get_conn()
         await db.execute(
@@ -273,7 +263,53 @@ class DatabaseManager:
             row = await cursor.fetchone()
             return {"total_attempts": row[0] or 0, "avg_score": row[1] or 0.0}
 
+    async def get_quiz_history(self) -> list[dict]:
+        db = await self._get_conn()
+        async with db.execute("""
+            SELECT c.subject, q.score, q.total, q.timestamp 
+            FROM quiz_attempts q
+            JOIN modules m ON q.module_id = m.id
+            JOIN courses c ON m.course_id = c.id
+            ORDER BY q.timestamp DESC
+        """) as cursor:
+            rows = await cursor.fetchall()
+            return [
+                {
+                    "course": r[0],
+                    "score": f"{int((r[1] / r[2]) * 100)}%" if r[2] else "0%",
+                    "date": r[3][:10] 
+                }
+                for r in rows
+            ]
 
+    async def get_parent_stats(self) -> dict:
+        db = await self._get_conn()
+        stats = {"total_quizzes": 0, "avg_score": "0%", "last_active": "Never"}
+        
+        async with db.execute("SELECT COUNT(*), AVG(CAST(score AS FLOAT) / CAST(total AS FLOAT) * 100) FROM quiz_attempts") as cursor:
+            row = await cursor.fetchone()
+            if row and row[0]:
+                stats["total_quizzes"] = row[0]
+                stats["avg_score"] = f"{int(row[1])}%" if row[1] else "0%"
+                
+        async with db.execute("SELECT last_active_date FROM gamification WHERE id = 1") as cursor:
+            row = await cursor.fetchone()
+            if row and row[0]:
+                stats["last_active"] = row[0]
+                
+        return stats
+
+    async def update_login_timestamp(self):
+        now = datetime.now().isoformat()
+        await self.set_setting("last_login", now)
+
+    async def check_daily_reward_eligibility(self) -> bool:
+        last_login_str = await self.get_setting("last_login")
+        if not last_login_str:
+            return True
+        last_login = datetime.fromisoformat(last_login_str)
+        delta = datetime.now() - last_login
+        return delta.total_seconds() > 86400 
 
     async def save_assessment(self, course_id: int, score: int, total: int, grade: str, duration: int):
         db = await self._get_conn()
@@ -282,8 +318,6 @@ class DatabaseManager:
             (course_id, score, total, grade, duration),
         )
         await db.commit()
-
-
 
     async def get_credits_used_today(self) -> int:
         db = await self._get_conn()
@@ -302,8 +336,6 @@ class DatabaseManager:
             (today, credits, action),
         )
         await db.commit()
-
-
 
     async def get_gamification(self) -> dict:
         db = await self._get_conn()
@@ -335,8 +367,6 @@ class DatabaseManager:
         )
         await db.commit()
 
-
-
     async def save_chat(self, module_id: int, messages: list):
         db = await self._get_conn()
         msgs_json = json.dumps(messages)
@@ -356,8 +386,6 @@ class DatabaseManager:
             if row and row[0]:
                 return json.loads(row[0])
         return []
-
-
 
     async def close(self):
         if self._conn:

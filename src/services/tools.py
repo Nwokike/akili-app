@@ -44,19 +44,25 @@ async def search_web(query: str, max_results: int = 10, _is_retry: bool = False)
                         break
 
             print(f"[Tool] Found {len(results)} results")
+            
+            # CLEAN AND SHORTEN RESULTS FOR THE AI
+            clean_results = []
+            for r in results:
+                # Remove common tracking params to keep URLs clean
+                url = r["url"].split("?")[0]
+                clean_results.append({
+                    "title": r["title"],
+                    "url": url,
+                    "snippet": r["content"][:200]
+                })
 
-            if not results and not _is_retry:
+            if not clean_results and not _is_retry:
                 fallback_query = re.sub(r"\s*\d{4}$", "", query).strip()
                 if fallback_query != query:
                     print(f"[Tool] Retrying without year: '{fallback_query}'")
                     return await search_web(fallback_query, max_results, _is_retry=True)
 
-                return [{"error": "No results found for this query. Try a different search term."}]
-
-            if not results:
-                return [{"error": "No results found for this query. Try a different search term."}]
-
-            return results
+            return clean_results
 
     except Exception as e:
         print(f"[Tool] search_web error: {e}")
@@ -97,13 +103,13 @@ AKILI_TOOLS = [
         "type": "function",
         "function": {
             "name": "search_web",
-            "description": "Searches the internet for up-to-date facts, syllabuses, or curriculum information. ALWAYS use this if you are unsure of a fact.",
+            "description": "Searches the internet for current events, facts, or syllabuses. Search results only show snippets. If you need the full syllabus or detailed topics, you MUST follow up by calling read_page on the most relevant URL.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "The search term. Append the current year to ensure recent results.",
+                        "description": "The search term. Be specific.",
                     }
                 },
                 "required": ["query"],
@@ -114,13 +120,13 @@ AKILI_TOOLS = [
         "type": "function",
         "function": {
             "name": "read_page",
-            "description": "Reads the full text of a specific website URL. Use this after searching if the search snippet doesn't contain enough detailed information.",
+            "description": "Extracts the full text from a URL. ALWAYS use this after search_web as search snippets are insufficient for complex structured data.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "url": {
                         "type": "string",
-                        "description": "The full HTTP or HTTPS URL of the page to read",
+                        "description": "The full URL to extract content from.",
                     }
                 },
                 "required": ["url"],
