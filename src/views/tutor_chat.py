@@ -1,4 +1,3 @@
-import asyncio
 import flet as ft
 
 from components.camera_viewfinder import CameraViewfinder
@@ -19,8 +18,10 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
     pending_media: list[dict] = []
 
     messages_col = ft.Column(
-        spacing=16, scroll=ft.ScrollMode.AUTO,
-        expand=True, auto_scroll=True,
+        spacing=16,
+        scroll=ft.ScrollMode.AUTO,
+        expand=True,
+        auto_scroll=True,
     )
 
     # Wrap Column in a Container for padding
@@ -32,27 +33,39 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
 
     # ── Header (Minimalist) ───────────────────────────────────────
     header = ft.Container(
-        content=ft.Row([
-            ft.Row([
-                ft.IconButton(
-                    icon=ft.Icons.ARROW_BACK_ROUNDED,
-                    on_click=lambda e: page.run_task(navigate, "/dashboard"),
+        content=ft.Row(
+            [
+                ft.Row(
+                    [
+                        ft.IconButton(
+                            icon=ft.Icons.ARROW_BACK_ROUNDED,
+                            on_click=lambda e: page.run_task(navigate, "/dashboard"),
+                        ),
+                        ft.Image(src="/icon.png", width=32, height=32),
+                        # Removed "Akili Tutor" text as per user request
+                    ],
+                    spacing=12,
                 ),
-                ft.Image(src="/icon.png", width=32, height=32),
-                # Removed "Akili Tutor" text as per user request
-            ], spacing=12),
-            ft.Row([
-                ft.Container(
-                    content=ft.Row([
-                        ft.Icon(ft.Icons.SAVINGS_ROUNDED, size=14, color=AppColors.ACCENT),
-                        ft.Text(f"{state.credits_remaining}", size=12, weight=ft.FontWeight.W_600),
-                    ], spacing=4),
-                    padding=ft.Padding(12, 6, 12, 6),
-                    bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.ON_SURFACE),
-                    border_radius=AppStyles.RADIUS_SMALL,
+                ft.Row(
+                    [
+                        ft.Container(
+                            content=ft.Row(
+                                [
+                                    ft.Icon(ft.Icons.SAVINGS_ROUNDED, size=14, color=AppColors.ACCENT),
+                                    ft.Text(f"{state.credits_remaining}", size=12, weight=ft.FontWeight.W_600),
+                                ],
+                                spacing=4,
+                            ),
+                            padding=ft.Padding(12, 6, 12, 6),
+                            bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.ON_SURFACE),
+                            border_radius=AppStyles.RADIUS_SMALL,
+                        ),
+                    ],
+                    spacing=8,
                 ),
-            ], spacing=8),
-        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ],
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+        ),
         padding=ft.Padding(8, 8, 20, 8),
     )
 
@@ -99,26 +112,32 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
                 await gamification_service.award_xp("tutor_chat")
         except Exception as e:
             chat_messages[msg_id]["content"] = f"Error: {str(e)}"
-        
+
         _render_chat()
 
     def _render_chat():
         messages_col.controls.clear()
         for msg in chat_messages:
             is_user = msg["role"] == "user"
-            
+
             # Simplified bubbles
             bubble = ft.Container(
-                content=ft.Column([
-                    ft.Markdown(
-                        msg["content"],
-                        selectable=True,
-                        extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
-                    ) if not is_user else ft.Text(msg["content"], size=15),
-                ], tight=True),
+                content=ft.Column(
+                    [
+                        ft.Markdown(
+                            msg["content"],
+                            selectable=True,
+                            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                        )
+                        if not is_user
+                        else ft.Text(msg["content"], size=15),
+                    ],
+                    tight=True,
+                ),
                 padding=16,
                 border_radius=ft.BorderRadius(
-                    top_left=16, top_right=16,
+                    top_left=16,
+                    top_right=16,
                     bottom_left=4 if is_user else 16,
                     bottom_right=16 if is_user else 4,
                 ),
@@ -126,7 +145,7 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
                 alignment=ft.Alignment.CENTER_RIGHT if is_user else ft.Alignment.CENTER_LEFT,
                 width=page.width * 0.75,
             )
-            
+
             row = ft.Row(
                 [bubble],
                 alignment=ft.MainAxisAlignment.END if is_user else ft.MainAxisAlignment.START,
@@ -135,10 +154,11 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         page.update()
 
     media_preview = MediaPreviewBar(on_remove=lambda idx: pending_media.pop(idx))
-    
+
     input_bar = InputBar(
+        page=page,
         on_send=_on_send,
-        on_camera=lambda: page.run_task(CameraViewfinder(page, _on_media_result).show),
+        on_camera=lambda: page.run_task(CameraViewfinder(page, _on_media_result, lambda: None).show),
         on_mic=lambda: page.run_task(audio_service.start_recording),
         on_attach=lambda: page.run_task(file_picker.pick_files),
     )
@@ -148,17 +168,22 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         controls=[
             ft.SafeArea(
                 ft.Container(
-                    content=ft.Column([
-                        header,
-                        messages_container,
-                        media_preview,
-                        input_bar,
-                    ], spacing=0, expand=True),
+                    content=ft.Column(
+                        [
+                            header,
+                            messages_container,
+                            media_preview,
+                            input_bar,
+                        ],
+                        spacing=0,
+                        expand=True,
+                    ),
                     bgcolor=ft.Colors.SURFACE,
                     expand=True,
                 ),
                 expand=True,
             )
         ],
-        padding=0, spacing=0,
+        padding=0,
+        spacing=0,
     )

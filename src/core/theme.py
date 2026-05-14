@@ -4,11 +4,12 @@ import flet as ft
 class AppColors:
     # Premium Bluish Minimalist Palette
     # Using Indigo/Royal Blue which is "absolutely beautiful"
-    PRIMARY = "#4F46E5"    # Indigo 600
+    PRIMARY = "#4F46E5"  # Indigo 600
     SECONDARY = "#4338CA"  # Indigo 700
-    ACCENT = "#F59E0B"     # Amber 500 (Gold) - Complements Blue
-    
-    SUCCESS = "#10B981"    # Emerald (Keep for success)
+    TERTIARY = "#7C3AED"  # Violet (for gradients)
+    ACCENT = "#F59E0B"  # Amber 500 (Gold) - Complements Blue
+
+    SUCCESS = "#10B981"  # Emerald (Keep for success)
     WARNING = "#F59E0B"
     ERROR = "#EF4444"
 
@@ -27,8 +28,14 @@ class AppColors:
 
     # Subject colors - muted and harmonious with blue
     SUBJECT_COLORS = [
-        "#4F46E5", "#06B6D4", "#10B981", "#EAB308",
-        "#8B5CF6", "#EC4899", "#F97316", "#3B82F6",
+        "#4F46E5",
+        "#06B6D4",
+        "#10B981",
+        "#EAB308",
+        "#8B5CF6",
+        "#EC4899",
+        "#F97316",
+        "#3B82F6",
     ]
 
 
@@ -66,7 +73,6 @@ class AppStyles:
 
 
 class AppTheme:
-
     @staticmethod
     def get_dark_theme() -> ft.Theme:
         return ft.Theme(

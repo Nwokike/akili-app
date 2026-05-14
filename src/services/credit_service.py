@@ -1,5 +1,3 @@
-
-
 from datetime import date
 
 from core.constants import CREDIT_COSTS, DAILY_CREDITS

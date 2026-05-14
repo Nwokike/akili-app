@@ -1,13 +1,15 @@
 import flet as ft
-from database.manager import db_manager
+
 from core.theme import AppColors, AppStyles
+from database.manager import db_manager
+
 
 async def get_parent_portal_view(page: ft.Page):
     DEFAULT_PIN = "1234"
-    
+
     # Fetch real stats from the database
     stats = await db_manager.get_parent_stats()
-    
+
     # --- The Unlocked Dashboard ---
     dashboard_view = ft.Column(
         visible=False,
@@ -19,24 +21,24 @@ async def get_parent_portal_view(page: ft.Page):
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 controls=[
                     ft.Text("total quizzes taken:", size=16),
-                    ft.Text(str(stats["total_quizzes"]), weight=ft.FontWeight.BOLD, size=16), 
-                ]
+                    ft.Text(str(stats["total_quizzes"]), weight=ft.FontWeight.BOLD, size=16),
+                ],
             ),
             ft.Row(
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 controls=[
                     ft.Text("average score:", size=16),
-                    ft.Text(stats["avg_score"], weight=ft.FontWeight.BOLD, size=16), 
-                ]
+                    ft.Text(stats["avg_score"], weight=ft.FontWeight.BOLD, size=16),
+                ],
             ),
             ft.Row(
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 controls=[
                     ft.Text("last active:", size=16),
-                    ft.Text(str(stats["last_active"] or "Never"), weight=ft.FontWeight.BOLD, size=16), 
-                ]
+                    ft.Text(str(stats["last_active"] or "Never"), weight=ft.FontWeight.BOLD, size=16),
+                ],
             ),
-        ]
+        ],
     )
 
     # --- The PIN Lock Screen ---
@@ -48,9 +50,9 @@ async def get_parent_portal_view(page: ft.Page):
         cursor_color=ft.Colors.ON_SURFACE,
         text_align=ft.TextAlign.CENTER,
         border_radius=AppStyles.RADIUS,
-        width=200
+        width=200,
     )
-    
+
     error_text = ft.Text("incorrect pin", color=ft.Colors.RED_700, visible=False)
 
     def verify_pin(e):
@@ -76,13 +78,13 @@ async def get_parent_portal_view(page: ft.Page):
             ft.FilledButton(
                 "unlock",
                 style=ft.ButtonStyle(
-                    bgcolor=AppColors.PRIMARY, 
+                    bgcolor=AppColors.PRIMARY,
                     color=ft.Colors.WHITE,
-                    shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS_SMALL)
+                    shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS_SMALL),
                 ),
-                on_click=verify_pin
-            )
-        ]
+                on_click=verify_pin,
+            ),
+        ],
     )
 
     return ft.View(
@@ -90,12 +92,5 @@ async def get_parent_portal_view(page: ft.Page):
         appbar=ft.AppBar(
             title=ft.Text("parent portal"),
         ),
-        controls=[
-            ft.SafeArea(
-                expand=True,
-                content=ft.Stack(
-                    controls=[lock_screen, dashboard_view]
-                )
-            )
-        ]
+        controls=[ft.SafeArea(expand=True, content=ft.Stack(controls=[lock_screen, dashboard_view]))],
     )

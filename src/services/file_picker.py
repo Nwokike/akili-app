@@ -16,9 +16,9 @@ class FilePickerService:
             allow_multiple=False,
             allowed_extensions=["png", "jpg", "jpeg", "webp"],
             file_type=ft.FilePickerFileType.IMAGE,
-            with_data=True # Get bytes directly for multimodal AI
+            with_data=True,  # Get bytes directly for multimodal AI
         )
-        
+
         if result and len(result) > 0:
             file = result[0]
             try:
@@ -28,7 +28,7 @@ class FilePickerService:
                 else:
                     with open(file.path, "rb") as f:
                         data = f.read()
-                
+
                 # Determine standard MIME type
                 mime_type = "image/jpeg"
                 if file.name.lower().endswith(".png"):

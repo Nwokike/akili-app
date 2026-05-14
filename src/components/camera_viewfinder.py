@@ -1,5 +1,3 @@
-
-
 import asyncio
 import base64
 
@@ -11,7 +9,6 @@ from core.theme import AppColors
 
 
 class CameraViewfinder(ft.Stack):
-
     def __init__(
         self,
         page: ft.Page,
@@ -26,10 +23,9 @@ class CameraViewfinder(ft.Stack):
         self._camera = None
         self._cameras = []
         self._current_camera_index = 0
-        
 
         self._preview_container = ft.Container(expand=True, bgcolor=ft.Colors.BLACK)
-        
+
         self._close_btn = ft.IconButton(
             icon=ft.Icons.CLOSE_ROUNDED,
             icon_color=ft.Colors.WHITE,
@@ -37,7 +33,7 @@ class CameraViewfinder(ft.Stack):
             bgcolor="#44000000",
             on_click=self._handle_close,
         )
-        
+
         self._flip_btn = ft.IconButton(
             icon=ft.Icons.FLIP_CAMERA_IOS_ROUNDED,
             icon_color=ft.Colors.WHITE,
@@ -56,16 +52,13 @@ class CameraViewfinder(ft.Stack):
             animate=ft.Animation(300, ft.AnimationCurve.EASE_OUT),
         )
 
-
         self.controls = [
             self._preview_container,
-
             ft.Container(
                 content=self._close_btn,
                 top=20,
                 right=20,
             ),
-
             ft.Container(
                 bottom=0,
                 left=0,
@@ -78,16 +71,13 @@ class CameraViewfinder(ft.Stack):
                 ),
                 content=ft.Column(
                     controls=[
-
                         ft.Stack(
                             height=100,
                             controls=[
-
                                 ft.Container(
                                     content=self._capture_btn,
                                     alignment=ft.Alignment.CENTER,
                                 ),
-
                                 ft.Container(
                                     content=self._flip_btn,
                                     right=40,
@@ -95,14 +85,13 @@ class CameraViewfinder(ft.Stack):
                                 ),
                             ],
                         ),
-
                         ft.Container(height=40),
                     ],
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                     alignment=ft.MainAxisAlignment.END,
                     spacing=0,
                 ),
-            )
+            ),
         ]
 
     async def initialize(self) -> bool:
@@ -110,10 +99,9 @@ class CameraViewfinder(ft.Stack):
             self._camera = Camera()
             self._preview_container.content = self._camera
             self.update()
-            
 
             await asyncio.sleep(0.5)
-            
+
             self._cameras = await self._camera.get_available_cameras()
             if not self._cameras:
                 return False
@@ -134,7 +122,7 @@ class CameraViewfinder(ft.Stack):
     async def _handle_flip(self, e):
         if not self._cameras or not self._camera:
             return
-        
+
         self._current_camera_index = (self._current_camera_index + 1) % len(self._cameras)
         try:
             await self._camera.initialize(
@@ -149,18 +137,17 @@ class CameraViewfinder(ft.Stack):
             return
 
         try:
-
             self._capture_btn.scale = 0.9
             self.update()
             await asyncio.sleep(0.1)
-            
+
             image_base64 = await self._camera.take_picture()
             self._capture_btn.scale = 1.0
             self.update()
-            
+
             if image_base64:
                 image_bytes = base64.b64decode(image_base64) if isinstance(image_base64, str) else image_base64
-                    
+
                 self._on_capture(image_bytes, "image/jpeg", "photo.jpg")
                 self._handle_close(None)
         except Exception as err:

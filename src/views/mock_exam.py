@@ -1,7 +1,7 @@
 import time
+
 import flet as ft
 
-from core.constants import XP_REWARDS
 from core.state import state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager
@@ -24,7 +24,7 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
     question_text = ft.Text("", size=18, weight=ft.FontWeight.W_600)
     question_num = ft.Text("", size=13, color=ft.Colors.ON_SURFACE_VARIANT)
     options_col = ft.Column(spacing=10)
-    
+
     next_btn = ft.FilledButton(
         "Next Question",
         visible=False,
@@ -43,9 +43,11 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
             ft.ProgressRing(width=36, height=36, stroke_width=3, color=AppColors.PRIMARY),
             ft.Text("Preparing exam...", size=14, weight=ft.FontWeight.W_500),
         ],
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=12, visible=True,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        spacing=12,
+        visible=True,
     )
-    
+
     exam_content = ft.Column(visible=False, spacing=20, expand=True)
     result_content = ft.Column(visible=False, spacing=20, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
@@ -91,15 +93,20 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
         options_col.controls.clear()
         for i, opt in enumerate(q["options"]):
             opt_container = ft.Container(
-                content=ft.Row([
-                    ft.Container(
-                        content=ft.Text(chr(65+i), size=12, weight=ft.FontWeight.BOLD),
-                        width=24, height=24, border_radius=12,
-                        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
-                        alignment=ft.Alignment.CENTER,
-                    ),
-                    ft.Text(opt, size=15, expand=True),
-                ], spacing=12),
+                content=ft.Row(
+                    [
+                        ft.Container(
+                            content=ft.Text(chr(65 + i), size=12, weight=ft.FontWeight.BOLD),
+                            width=24,
+                            height=24,
+                            border_radius=12,
+                            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+                            alignment=ft.Alignment.CENTER,
+                        ),
+                        ft.Text(opt, size=15, expand=True),
+                    ],
+                    spacing=12,
+                ),
                 padding=ft.Padding(16, 16, 16, 16),
                 border_radius=AppStyles.RADIUS,
                 bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
@@ -115,7 +122,8 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
         passed = pct >= 60
 
         await db_manager.save_quiz_attempt(course["id"], score["correct"], total, "", 1 if passed else 0)
-        if passed: await gamification_service.award_xp("exam_pass")
+        if passed:
+            await gamification_service.award_xp("exam_pass")
 
         color = AppColors.SUCCESS if passed else AppColors.ERROR
 
@@ -134,8 +142,10 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
         response = await ai_service.chat(
             messages=[{"role": "user", "content": f"Generate 10 MCQ for {course['subject']}. Return JSON array."}],
             system_prompt="Return ONLY valid JSON array. No markdown.",
+            use_tools=False,
         )
         from views.quiz_view import _parse_quiz_json
+
         parsed = _parse_quiz_json(response.get("content", ""))
         if parsed:
             questions.clear()
@@ -151,14 +161,22 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
             page.update()
 
     header = ft.Container(
-        content=ft.Row([
-            ft.IconButton(icon=ft.Icons.ARROW_BACK_ROUNDED, on_click=lambda e: page.run_task(navigate, "/dashboard")),
-            ft.Column([
-                ft.Text("Mock Exam", size=18, weight=ft.FontWeight.BOLD),
-                ft.Text(course["subject"], size=12, color=ft.Colors.ON_SURFACE_VARIANT),
-            ], spacing=0, tight=True, expand=True),
-            timer_text,
-        ], spacing=8),
+        content=ft.Row(
+            [
+                ft.IconButton(icon=ft.Icons.ARROW_BACK_ROUNDED, on_click=lambda e: page.run_task(navigate, "/dashboard")),
+                ft.Column(
+                    [
+                        ft.Text("Mock Exam", size=18, weight=ft.FontWeight.BOLD),
+                        ft.Text(course["subject"], size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+                    ],
+                    spacing=0,
+                    tight=True,
+                    expand=True,
+                ),
+                timer_text,
+            ],
+            spacing=8,
+        ),
         padding=ft.Padding(8, 8, 16, 8),
     )
 
@@ -175,12 +193,24 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
         controls=[
             ft.SafeArea(
                 ft.Container(
-                    content=ft.Column([header, ft.Container(content=ft.Column([loading_col, exam_content, result_content], scroll=ft.ScrollMode.AUTO), padding=20, expand=True)], spacing=0, expand=True),
+                    content=ft.Column(
+                        [
+                            header,
+                            ft.Container(
+                                content=ft.Column([loading_col, exam_content, result_content], scroll=ft.ScrollMode.AUTO),
+                                padding=20,
+                                expand=True,
+                            ),
+                        ],
+                        spacing=0,
+                        expand=True,
+                    ),
                     bgcolor=ft.Colors.SURFACE,
                     expand=True,
                 ),
                 expand=True,
             )
         ],
-        padding=0, spacing=0,
+        padding=0,
+        spacing=0,
     )

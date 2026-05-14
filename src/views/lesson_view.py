@@ -1,4 +1,5 @@
 import json
+
 import flet as ft
 
 from core.state import state
@@ -67,6 +68,7 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
             response = await ai_service.chat(
                 messages=[{"role": "user", "content": prompt}],
                 system_prompt=f"You are Akili, a helpful AI tutor for {level} students.",
+                use_tools=False,
             )
 
             content = response.get("content", "")
@@ -104,44 +106,55 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
 
     # ── Header (Minimalist) ───────────────────────────────────────
     header = ft.Container(
-        content=ft.Row([
-            ft.IconButton(
-                icon=ft.Icons.ARROW_BACK_ROUNDED,
-                on_click=lambda e: page.run_task(navigate, "/modules"),
-            ),
-            ft.Column([
-                ft.Text(module["title"], size=18, weight=ft.FontWeight.BOLD, max_lines=1),
-                ft.Text(course.get("subject", ""), size=12, color=ft.Colors.ON_SURFACE_VARIANT),
-            ], spacing=0, tight=True, expand=True),
-        ], spacing=8),
+        content=ft.Row(
+            [
+                ft.IconButton(
+                    icon=ft.Icons.ARROW_BACK_ROUNDED,
+                    on_click=lambda e: page.run_task(navigate, "/modules"),
+                ),
+                ft.Column(
+                    [
+                        ft.Text(module["title"], size=18, weight=ft.FontWeight.BOLD, max_lines=1),
+                        ft.Text(course.get("subject", ""), size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+                    ],
+                    spacing=0,
+                    tight=True,
+                    expand=True,
+                ),
+            ],
+            spacing=8,
+        ),
         padding=ft.Padding(8, 8, 16, 8),
     )
 
     # ── Action Buttons (Minimalist) ───────────────────────────────
     actions = ft.Container(
-        content=ft.Row([
-            ft.FilledButton(
-                "Practice Quiz",
-                icon=ft.Icons.QUIZ_ROUNDED,
-                on_click=lambda e: page.run_task(navigate, "/quiz"),
-                style=ft.ButtonStyle(
-                    bgcolor=AppColors.PRIMARY,
-                    color=ft.Colors.WHITE,
-                    shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
+        content=ft.Row(
+            [
+                ft.FilledButton(
+                    "Practice Quiz",
+                    icon=ft.Icons.QUIZ_ROUNDED,
+                    on_click=lambda e: page.run_task(navigate, "/quiz"),
+                    style=ft.ButtonStyle(
+                        bgcolor=AppColors.PRIMARY,
+                        color=ft.Colors.WHITE,
+                        shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
+                    ),
+                    expand=True,
                 ),
-                expand=True,
-            ),
-            ft.OutlinedButton(
-                "Mark as Done",
-                icon=ft.Icons.DONE_ALL_ROUNDED,
-                on_click=lambda e: page.run_task(_mark_complete),
-                style=ft.ButtonStyle(
-                    color=AppColors.SUCCESS,
-                    shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
+                ft.OutlinedButton(
+                    "Mark as Done",
+                    icon=ft.Icons.DONE_ALL_ROUNDED,
+                    on_click=lambda e: page.run_task(_mark_complete),
+                    style=ft.ButtonStyle(
+                        color=AppColors.SUCCESS,
+                        shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
+                    ),
+                    expand=True,
                 ),
-                expand=True,
-            ),
-        ], spacing=12),
+            ],
+            spacing=12,
+        ),
         padding=ft.Padding(20, 12, 20, 20),
         bgcolor=ft.Colors.SURFACE,
     )
@@ -153,24 +166,33 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
         controls=[
             ft.SafeArea(
                 ft.Container(
-                    content=ft.Column([
-                        header,
-                        ft.Container(
-                            content=ft.Column([
-                                loading_indicator,
-                                error_text,
-                                lesson_content,
-                            ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.AUTO),
-                            padding=20,
-                            expand=True,
-                        ),
-                        actions,
-                    ], spacing=0, expand=True),
+                    content=ft.Column(
+                        [
+                            header,
+                            ft.Container(
+                                content=ft.Column(
+                                    [
+                                        loading_indicator,
+                                        error_text,
+                                        lesson_content,
+                                    ],
+                                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                                    scroll=ft.ScrollMode.AUTO,
+                                ),
+                                padding=20,
+                                expand=True,
+                            ),
+                            actions,
+                        ],
+                        spacing=0,
+                        expand=True,
+                    ),
                     bgcolor=ft.Colors.SURFACE,
                     expand=True,
                 ),
                 expand=True,
             )
         ],
-        padding=0, spacing=0,
+        padding=0,
+        spacing=0,
     )

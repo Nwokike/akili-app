@@ -31,6 +31,7 @@ class DatabaseManager:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
                 education_level TEXT NOT NULL,
+                education_levels TEXT DEFAULT '[]',
                 avatar_index INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -141,9 +142,7 @@ class DatabaseManager:
 
     async def set_setting(self, key: str, value: str):
         db = await self._get_conn()
-        await db.execute(
-            "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value)
-        )
+        await db.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
         await db.commit()
 
     async def get_setting(self, key: str, default=None):
@@ -152,23 +151,27 @@ class DatabaseManager:
             row = await cursor.fetchone()
             return row[0] if row else default
 
-    async def save_profile(self, name: str, education_level: str, avatar_index: int = 0):
+    async def save_profile(self, name: str, education_level: str, education_levels: list[dict] | None = None, avatar_index: int = 0):
         db = await self._get_conn()
         await db.execute("DELETE FROM profile")
+        levels_json = json.dumps(education_levels) if education_levels else "[]"
         await db.execute(
-            "INSERT INTO profile (name, education_level, avatar_index) VALUES (?, ?, ?)",
-            (name, education_level, avatar_index),
+            "INSERT INTO profile (name, education_level, education_levels, avatar_index) VALUES (?, ?, ?, ?)",
+            (name, education_level, levels_json, avatar_index),
         )
         await db.commit()
 
     async def get_profile(self) -> dict | None:
         db = await self._get_conn()
-        async with db.execute(
-            "SELECT name, education_level, avatar_index FROM profile LIMIT 1"
-        ) as cursor:
+        async with db.execute("SELECT name, education_level, education_levels, avatar_index FROM profile LIMIT 1") as cursor:
             row = await cursor.fetchone()
             if row:
-                return {"name": row[0], "education_level": row[1], "avatar_index": row[2]}
+                return {
+                    "name": row[0],
+                    "education_level": row[1],
+                    "education_levels": json.loads(row[2]) if row[2] else [],
+                    "avatar_index": row[3],
+                }
         return None
 
     async def add_course(self, subject: str, level: str, curriculum_json: str, color_index: int = 0) -> int:
@@ -183,14 +186,16 @@ class DatabaseManager:
 
     async def get_courses(self) -> list[dict]:
         db = await self._get_conn()
-        async with db.execute(
-            "SELECT id, subject, level, curriculum_json, progress_pct, color_index FROM courses ORDER BY created_at DESC"
-        ) as cursor:
+        async with db.execute("SELECT id, subject, level, curriculum_json, progress_pct, color_index FROM courses ORDER BY created_at DESC") as cursor:
             rows = await cursor.fetchall()
             return [
                 {
-                    "id": r[0], "subject": r[1], "level": r[2],
-                    "curriculum_json": r[3], "progress_pct": r[4], "color_index": r[5],
+                    "id": r[0],
+                    "subject": r[1],
+                    "level": r[2],
+                    "curriculum_json": r[3],
+                    "progress_pct": r[4],
+                    "color_index": r[5],
                 }
                 for r in rows
             ]
@@ -224,8 +229,13 @@ class DatabaseManager:
             rows = await cursor.fetchall()
             return [
                 {
-                    "id": r[0], "title": r[1], "topics_json": r[2], "lesson_cache": r[3],
-                    "order_num": r[4], "is_unlocked": r[5], "is_completed": r[6],
+                    "id": r[0],
+                    "title": r[1],
+                    "topics_json": r[2],
+                    "lesson_cache": r[3],
+                    "order_num": r[4],
+                    "is_unlocked": r[5],
+                    "is_completed": r[6],
                 }
                 for r in rows
             ]
@@ -242,9 +252,7 @@ class DatabaseManager:
 
     async def complete_module(self, module_id: int):
         db = await self._get_conn()
-        await db.execute(
-            "UPDATE modules SET is_completed = 1 WHERE id = ?", (module_id,)
-        )
+        await db.execute("UPDATE modules SET is_completed = 1 WHERE id = ?", (module_id,))
         await db.commit()
 
     async def save_quiz_attempt(self, module_id: int, score: int, total: int, questions_json: str, passed: int):
@@ -257,9 +265,7 @@ class DatabaseManager:
 
     async def get_quiz_stats(self) -> dict:
         db = await self._get_conn()
-        async with db.execute(
-            "SELECT COUNT(*), AVG(CAST(score AS FLOAT) / CAST(total AS FLOAT) * 100) FROM quiz_attempts"
-        ) as cursor:
+        async with db.execute("SELECT COUNT(*), AVG(CAST(score AS FLOAT) / CAST(total AS FLOAT) * 100) FROM quiz_attempts") as cursor:
             row = await cursor.fetchone()
             return {"total_attempts": row[0] or 0, "avg_score": row[1] or 0.0}
 
@@ -273,30 +279,23 @@ class DatabaseManager:
             ORDER BY q.timestamp DESC
         """) as cursor:
             rows = await cursor.fetchall()
-            return [
-                {
-                    "course": r[0],
-                    "score": f"{int((r[1] / r[2]) * 100)}%" if r[2] else "0%",
-                    "date": r[3][:10] 
-                }
-                for r in rows
-            ]
+            return [{"course": r[0], "score": f"{int((r[1] / r[2]) * 100)}%" if r[2] else "0%", "date": r[3][:10]} for r in rows]
 
     async def get_parent_stats(self) -> dict:
         db = await self._get_conn()
         stats = {"total_quizzes": 0, "avg_score": "0%", "last_active": "Never"}
-        
+
         async with db.execute("SELECT COUNT(*), AVG(CAST(score AS FLOAT) / CAST(total AS FLOAT) * 100) FROM quiz_attempts") as cursor:
             row = await cursor.fetchone()
             if row and row[0]:
                 stats["total_quizzes"] = row[0]
                 stats["avg_score"] = f"{int(row[1])}%" if row[1] else "0%"
-                
+
         async with db.execute("SELECT last_active_date FROM gamification WHERE id = 1") as cursor:
             row = await cursor.fetchone()
             if row and row[0]:
                 stats["last_active"] = row[0]
-                
+
         return stats
 
     async def update_login_timestamp(self):
@@ -309,7 +308,7 @@ class DatabaseManager:
             return True
         last_login = datetime.fromisoformat(last_login_str)
         delta = datetime.now() - last_login
-        return delta.total_seconds() > 86400 
+        return delta.total_seconds() > 86400
 
     async def save_assessment(self, course_id: int, score: int, total: int, grade: str, duration: int):
         db = await self._get_conn()
@@ -322,9 +321,7 @@ class DatabaseManager:
     async def get_credits_used_today(self) -> int:
         db = await self._get_conn()
         today = date.today().isoformat()
-        async with db.execute(
-            "SELECT SUM(credits_used) FROM credits_log WHERE date = ?", (today,)
-        ) as cursor:
+        async with db.execute("SELECT SUM(credits_used) FROM credits_log WHERE date = ?", (today,)) as cursor:
             row = await cursor.fetchone()
             return row[0] or 0
 
@@ -339,21 +336,26 @@ class DatabaseManager:
 
     async def get_gamification(self) -> dict:
         db = await self._get_conn()
-        async with db.execute(
-            "SELECT xp_total, level, current_streak, best_streak, badges_json, last_active_date "
-            "FROM gamification WHERE id = 1"
-        ) as cursor:
+        async with db.execute("SELECT xp_total, level, current_streak, best_streak, badges_json, last_active_date FROM gamification WHERE id = 1") as cursor:
             row = await cursor.fetchone()
             if row:
                 return {
-                    "xp_total": row[0], "level": row[1], "current_streak": row[2],
-                    "best_streak": row[3], "badges_json": row[4], "last_active_date": row[5],
+                    "xp_total": row[0],
+                    "level": row[1],
+                    "current_streak": row[2],
+                    "best_streak": row[3],
+                    "badges_json": row[4],
+                    "last_active_date": row[5],
                 }
         await db.execute("INSERT OR IGNORE INTO gamification (id) VALUES (1)")
         await db.commit()
         return {
-            "xp_total": 0, "level": "Freshman", "current_streak": 0,
-            "best_streak": 0, "badges_json": "[]", "last_active_date": None,
+            "xp_total": 0,
+            "level": "Freshman",
+            "current_streak": 0,
+            "best_streak": 0,
+            "badges_json": "[]",
+            "last_active_date": None,
         }
 
     async def update_gamification(self, xp: int, level: str, streak: int, best_streak: int, badges: list):
@@ -379,9 +381,7 @@ class DatabaseManager:
 
     async def get_chat(self, module_id: int) -> list:
         db = await self._get_conn()
-        async with db.execute(
-            "SELECT messages_json FROM chat_history WHERE module_id = ?", (module_id,)
-        ) as cursor:
+        async with db.execute("SELECT messages_json FROM chat_history WHERE module_id = ?", (module_id,)) as cursor:
             row = await cursor.fetchone()
             if row and row[0]:
                 return json.loads(row[0])
@@ -394,9 +394,7 @@ class DatabaseManager:
 
     async def get_timetable(self) -> list[dict]:
         db = await self._get_conn()
-        async with db.execute(
-            "SELECT id, day, time_slot, subject, note FROM timetable ORDER BY day, time_slot"
-        ) as cursor:
+        async with db.execute("SELECT id, day, time_slot, subject, note FROM timetable ORDER BY day, time_slot") as cursor:
             rows = await cursor.fetchall()
             return [{"id": r[0], "day": r[1], "time_slot": r[2], "subject": r[3], "note": r[4]} for r in rows]
 

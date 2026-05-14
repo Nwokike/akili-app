@@ -37,11 +37,11 @@ dev = [
 requires-dist = [
     { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "beautifulsoup4", specifier = ">=4.14.3" },
-    { name = "flet", specifier = ">=0.84.0" },
-    { name = "flet-ads", specifier = ">=0.84.0" },
-    { name = "flet-audio-recorder", specifier = ">=0.84.0" },
-    { name = "flet-camera", specifier = ">=0.84.0" },
-    { name = "flet-permission-handler", specifier = ">=0.84.0" },
+    { name = "flet", specifier = ">=0.85.0" },
+    { name = "flet-ads", specifier = ">=0.85.0" },
+    { name = "flet-audio-recorder", specifier = ">=0.85.0" },
+    { name = "flet-camera", specifier = ">=0.85.0" },
+    { name = "flet-permission-handler", specifier = ">=0.85.0" },
     { name = "httpx", specifier = ">=0.28.1" },
 ]
 
@@ -97,7 +97,7 @@ wheels = [
 
 [[package]]
 name = "flet"
-version = "0.84.0"
+version = "0.85.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx", marker = "platform_system != 'Pyodide'" },
@@ -105,57 +105,57 @@ dependencies = [
     { name = "oauthlib", marker = "platform_system != 'Pyodide'" },
     { name = "repath" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1b/8e/d042b5cefa507195683ba439ee183ce24f0cdfa13005b0a8ab64dd403e72/flet-0.84.0.tar.gz", hash = "sha256:f8a4121666c8df2d1c5ea10b14113755895328251b7ce4ab37b140fc8b23fa36", size = 472575, upload-time = "2026-04-01T19:23:59.207Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/96/05/fad3c45a31707779c745e5361f25022f3d8447aba29c6dcaaa4e03e6ec0a/flet-0.85.0.tar.gz", hash = "sha256:17ba534fdf5bc4d806468156302216c4c906d483fa37c505dc629c9e9a42f3ee", size = 501301, upload-time = "2026-05-08T22:15:46.541Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cb/cf/2ea7810646e310977b2f756c875b3556dc8893aa706177106712ba8f77f9/flet-0.84.0-py3-none-any.whl", hash = "sha256:0661e317a7451d7ca562dde22520598e0ada74038ea171783c18dbc26c6cc5ca", size = 560353, upload-time = "2026-04-01T19:23:57.914Z" },
+    { url = "https://files.pythonhosted.org/packages/46/52/80ecbec0ea38150d755f6686689dd36e4db1812234abc19ebadd80e416f5/flet-0.85.0-py3-none-any.whl", hash = "sha256:ebc0e8bf378be186f664e3a751f0f6d6bc012f1ff50fabbe9b05a92f65414b32", size = 579720, upload-time = "2026-05-08T22:15:47.962Z" },
 ]
 
 [[package]]
 name = "flet-ads"
-version = "0.84.0"
+version = "0.85.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flet" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0f/04/70a10788cfb023312f6770dd2f067da6031a4c57c9f1206822bc8d034bab/flet_ads-0.84.0.tar.gz", hash = "sha256:fc2a64fe1d6ba6e8079810fd9688550496e61e5053033ffe0a3db2aa7d179d01", size = 12782, upload-time = "2026-04-01T19:24:11.967Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/74/14/0380dee123b399461a6b55f8d88d56f6f4f4f7054cac5b15ea80f9f38949/flet_ads-0.85.0.tar.gz", hash = "sha256:25fa58a1ec8b767b18bfe0c08c436fe4cfb04959d18a0951ecd2fb4eea6cb20f", size = 12815, upload-time = "2026-05-08T22:16:04.074Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1b/f5/a6be072e61708fab2a8e512c60b6ea80df2009739bf2b2dacab0f38c12d7/flet_ads-0.84.0-py3-none-any.whl", hash = "sha256:bc32691577dfcd254139b871d1493283bda9de439c3d389e9c6e2333035d7c95", size = 16457, upload-time = "2026-04-01T19:24:11.191Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/b6/e37c2ef2e6745aa01802896eb33b2b13c1f2d6431166b19819369e193902/flet_ads-0.85.0-py3-none-any.whl", hash = "sha256:377ab1175666f3f056c18eaf74c347480dafa7e2864a26b3ae05656fed332df6", size = 16463, upload-time = "2026-05-08T22:16:05.138Z" },
 ]
 
 [[package]]
 name = "flet-audio-recorder"
-version = "0.84.0"
+version = "0.85.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flet" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0b/42/d61b84a9616eb4e0c7a3f213995f2151090a6447176656ac00eca4eefca3/flet_audio_recorder-0.84.0.tar.gz", hash = "sha256:27c2960e5796e72d50a3af9b648ee965f383319fdb3d4d460a907eeaf9d477db", size = 13136, upload-time = "2026-04-01T19:24:16.831Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a9/4e/b941f63455cc80a3d2a335190b36690b31713d178375ad7fd38c2b8c6e8e/flet_audio_recorder-0.85.0.tar.gz", hash = "sha256:8302e5f2f79f38f484778c757e79c0b896ffcaa5b20f15f187e1431780e559dd", size = 18258, upload-time = "2026-05-08T22:16:11.686Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3c/02/44f432125560cce0aa88af944b446c800acca444d24df2a071e42b602482/flet_audio_recorder-0.84.0-py3-none-any.whl", hash = "sha256:94d77b8ed6a215b0e853a24c4283114f3d28f274c063bb31ec20b7fb6b525868", size = 14471, upload-time = "2026-04-01T19:24:15.978Z" },
+    { url = "https://files.pythonhosted.org/packages/05/36/425d3a0a8a5c6faedd821f3761a198cb34ab9a3929768e857f4f64e71e60/flet_audio_recorder-0.85.0-py3-none-any.whl", hash = "sha256:1942f78339fdd892fb3035384e9e52454a68fe19b8d64956ba52aefc41756ee2", size = 19673, upload-time = "2026-05-08T22:16:10.719Z" },
 ]
 
 [[package]]
 name = "flet-camera"
-version = "0.84.0"
+version = "0.85.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flet" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0a/21/706cfe9935f6844d5043aa933f44484d8c6923ce6fa73925e9369f0ef11f/flet_camera-0.84.0.tar.gz", hash = "sha256:3f4009e8ba3483ef683879ddd13585747b5a7fe5eab55b09b2e52fa85517917b", size = 15747, upload-time = "2026-04-01T19:24:19.188Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4a/fd/252e711d2d9fbbc1a6d92f95e2b3dda682a40d24cf7c0a5d3dbc2461e7d4/flet_camera-0.85.0.tar.gz", hash = "sha256:44e40853fd78d7318e2bf9c5839e793fd0af37092462a078040d8efc900032b6", size = 15760, upload-time = "2026-05-08T22:16:14.645Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/22/40/19b4ec11d350e72f42753982897e011b760d458f911bada7c516a36cd8de/flet_camera-0.84.0-py3-none-any.whl", hash = "sha256:0e6d8f1cc1d1c752e9fcaaa1f8f6664c21c50b84f8c38f9c2d12dc79f4a78089", size = 17009, upload-time = "2026-04-01T19:24:18.274Z" },
+    { url = "https://files.pythonhosted.org/packages/37/65/8fa73c1b1c2591f315b037accd7929aa403424b194c3f84912c292abeeec/flet_camera-0.85.0-py3-none-any.whl", hash = "sha256:06af1cb71756c9c4b975bae8912bb18dccac486c1ea49956ab132bcb5a8341fa", size = 17011, upload-time = "2026-05-08T22:16:13.762Z" },
 ]
 
 [[package]]
 name = "flet-permission-handler"
-version = "0.84.0"
+version = "0.85.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flet" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ef/01/b0f72006e5d8ab69a57d0591d936c0a0a895768567afd644f085f2bf9ac3/flet_permission_handler-0.84.0.tar.gz", hash = "sha256:f2d96448edb7d976cbf80241a1d9310efed8a8a4adbf6778d0d6023c44aa5627", size = 12238, upload-time = "2026-04-01T19:24:43.564Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/52/03/6704d0d7b4d8fad8624e1bb71f6aa0cbe88366660494e958584c7bbf321a/flet_permission_handler-0.85.0.tar.gz", hash = "sha256:112701b49f1c2549c1f6d80afa87e5d15676dc3435f7e45da58f83fe30384084", size = 12219, upload-time = "2026-05-08T22:16:44.608Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4b/48/6de5f581bd87ddacd3b2388abd62f213cb6d7729e3c3573e733103f50eb6/flet_permission_handler-0.84.0-py3-none-any.whl", hash = "sha256:a2aee6bb90191d3f502c00eb05088b068eae06e3d67ed73b6b66a42cc5d362eb", size = 13552, upload-time = "2026-04-01T19:24:44.203Z" },
+    { url = "https://files.pythonhosted.org/packages/63/ad/2eaab039c351b0412b10eaa8255ba62ddf80779c9f4b9c247cdbc0e9bbc4/flet_permission_handler-0.85.0-py3-none-any.whl", hash = "sha256:07fa1220f808ce832e97a8df2592ba680f22708bb19e5fd82a6661f33b203ebe", size = 13552, upload-time = "2026-05-08T22:16:43.706Z" },
 ]
 
 [[package]]

@@ -1,5 +1,7 @@
 import flet as ft
+
 from core.theme import AppColors, AppStyles
+
 
 def get_premium_preview_view(page: ft.Page):
     # We use a PageView for the swipeable carousel
@@ -19,8 +21,8 @@ def get_premium_preview_view(page: ft.Page):
                         ft.Icon(ft.Icons.BLOCK, size=80, color=ft.Colors.ON_SURFACE),
                         ft.Text("ad-free experience", size=24, weight=ft.FontWeight.BOLD),
                         ft.Text("focus on learning without any interruptions.", text_align=ft.TextAlign.CENTER),
-                    ]
-                )
+                    ],
+                ),
             ),
             # Slide 2: 10x Credits
             ft.Container(
@@ -32,8 +34,8 @@ def get_premium_preview_view(page: ft.Page):
                         ft.Icon(ft.Icons.BOLT, size=80, color=ft.Colors.ON_SURFACE),
                         ft.Text("10x daily credits", size=24, weight=ft.FontWeight.BOLD),
                         ft.Text("take more mock exams and quizzes every single day.", text_align=ft.TextAlign.CENTER),
-                    ]
-                )
+                    ],
+                ),
             ),
             # Slide 3: CTA
             ft.Container(
@@ -48,18 +50,16 @@ def get_premium_preview_view(page: ft.Page):
                         ft.FilledButton(
                             "notify me when it's ready",
                             style=ft.ButtonStyle(
-                                bgcolor=AppColors.PRIMARY, 
+                                bgcolor=AppColors.PRIMARY,
                                 color=ft.Colors.WHITE,
-                                shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS)
+                                shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
                             ),
-                            on_click=lambda e: page.show_snack_bar(
-                                ft.SnackBar(content=ft.Text("you're on the list!"))
-                            )
-                        )
-                    ]
-                )
-            )
-        ]
+                            on_click=lambda e: page.show_snack_bar(ft.SnackBar(content=ft.Text("you're on the list!"))),
+                        ),
+                    ],
+                ),
+            ),
+        ],
     )
 
     return ft.View(
@@ -67,10 +67,5 @@ def get_premium_preview_view(page: ft.Page):
         appbar=ft.AppBar(
             title=ft.Text("premium"),
         ),
-        controls=[
-            ft.SafeArea(
-                expand=True,
-                content=carousel
-            )
-        ]
+        controls=[ft.SafeArea(expand=True, content=carousel)],
     )

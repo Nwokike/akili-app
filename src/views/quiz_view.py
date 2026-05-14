@@ -1,23 +1,19 @@
 import json
-import random
 import re
+
 import flet as ft
 
-from core.constants import XP_REWARDS
 from core.state import state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager
 from services.ai_service import ai_service
-from services.gamification import gamification_service
 
 
 def build_quiz_view(page: ft.Page, navigate) -> ft.View:
     module = state.current_module
-    course = state.current_course or {}
     if not module:
         return ft.View(route="/quiz", controls=[ft.Text("No module selected")])
 
-    topics = json.loads(module.get("topics_json", "[]"))
     questions: list[dict] = []
     current_q = {"index": 0}
     selected_answer = {"value": None}
@@ -27,7 +23,7 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
     question_num = ft.Text("", size=13, color=ft.Colors.ON_SURFACE_VARIANT)
     options_col = ft.Column(spacing=10)
     feedback_text = ft.Text("", size=14, visible=False, weight=ft.FontWeight.W_500)
-    
+
     next_btn = ft.FilledButton(
         "Next Question",
         visible=False,
@@ -46,9 +42,11 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
             ft.ProgressRing(width=36, height=36, stroke_width=3, color=AppColors.PRIMARY),
             ft.Text("Crafting your quiz...", size=14, weight=ft.FontWeight.W_500),
         ],
-        horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=12, visible=True,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        spacing=12,
+        visible=True,
     )
-    
+
     quiz_content = ft.Column(visible=False, spacing=20, expand=True)
     result_content = ft.Column(visible=False, spacing=20, horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
@@ -97,15 +95,20 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         options_col.controls.clear()
         for i, opt in enumerate(q["options"]):
             opt_container = ft.Container(
-                content=ft.Row([
-                    ft.Container(
-                        content=ft.Text(chr(65+i), size=12, weight=ft.FontWeight.BOLD),
-                        width=24, height=24, border_radius=12,
-                        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
-                        alignment=ft.Alignment.CENTER,
-                    ),
-                    ft.Text(opt, size=15, expand=True),
-                ], spacing=12),
+                content=ft.Row(
+                    [
+                        ft.Container(
+                            content=ft.Text(chr(65 + i), size=12, weight=ft.FontWeight.BOLD),
+                            width=24,
+                            height=24,
+                            border_radius=12,
+                            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+                            alignment=ft.Alignment.CENTER,
+                        ),
+                        ft.Text(opt, size=15, expand=True),
+                    ],
+                    spacing=12,
+                ),
                 padding=ft.Padding(16, 16, 16, 16),
                 border_radius=AppStyles.RADIUS,
                 bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
@@ -121,11 +124,13 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         passed = pct >= 60
 
         await db_manager.save_quiz_attempt(
-            module["id"], score["correct"], total,
-            json.dumps(questions), 1 if passed else 0,
+            module["id"],
+            score["correct"],
+            total,
+            json.dumps(questions),
+            1 if passed else 0,
         )
 
-        grade = "A" if pct >= 80 else "B" if pct >= 70 else "C" if pct >= 60 else "F"
         color = AppColors.SUCCESS if passed else AppColors.ERROR
 
         result_content.controls = [
@@ -134,10 +139,18 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
             ft.Text("Quiz Completed" if passed else "Keep Practicing", size=28, weight=ft.FontWeight.BOLD),
             ft.Text(f"You scored {score['correct']}/{total}", size=18, color=ft.Colors.ON_SURFACE_VARIANT),
             ft.Container(height=20),
-            ft.Row([
-                ft.Button("Retake", icon=ft.Icons.REPLAY_ROUNDED, on_click=lambda e: page.run_task(_generate_quiz)),
-                ft.FilledButton("Continue", icon=ft.Icons.ARROW_FORWARD_ROUNDED, on_click=lambda e: page.run_task(navigate, "/modules")),
-            ], alignment=ft.MainAxisAlignment.CENTER, spacing=16),
+            ft.Row(
+                [
+                    ft.Button("Retake", icon=ft.Icons.REPLAY_ROUNDED, on_click=lambda e: page.run_task(_generate_quiz)),
+                    ft.FilledButton(
+                        "Continue",
+                        icon=ft.Icons.ARROW_FORWARD_ROUNDED,
+                        on_click=lambda e: page.run_task(navigate, "/modules"),
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=16,
+            ),
         ]
         result_content.visible = True
         page.update()
@@ -147,10 +160,11 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         quiz_content.visible = False
         result_content.visible = False
         page.update()
-        
+
         response = await ai_service.chat(
             messages=[{"role": "user", "content": f"Generate 5 MCQ about {module['title']}. Return JSON array."}],
             system_prompt="Return ONLY valid JSON array. No markdown.",
+            use_tools=False,
         )
         parsed = _parse_quiz_json(response.get("content", ""))
         if parsed:
@@ -166,13 +180,21 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
             page.update()
 
     header = ft.Container(
-        content=ft.Row([
-            ft.IconButton(icon=ft.Icons.ARROW_BACK_ROUNDED, on_click=lambda e: page.run_task(navigate, "/modules")),
-            ft.Column([
-                ft.Text("Knowledge Check", size=18, weight=ft.FontWeight.BOLD),
-                ft.Text(module["title"], size=12, color=ft.Colors.ON_SURFACE_VARIANT),
-            ], spacing=0, tight=True, expand=True),
-        ], spacing=8),
+        content=ft.Row(
+            [
+                ft.IconButton(icon=ft.Icons.ARROW_BACK_ROUNDED, on_click=lambda e: page.run_task(navigate, "/modules")),
+                ft.Column(
+                    [
+                        ft.Text("Knowledge Check", size=18, weight=ft.FontWeight.BOLD),
+                        ft.Text(module["title"], size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+                    ],
+                    spacing=0,
+                    tight=True,
+                    expand=True,
+                ),
+            ],
+            spacing=8,
+        ),
         padding=ft.Padding(8, 8, 16, 8),
     )
 
@@ -191,25 +213,43 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         controls=[
             ft.SafeArea(
                 ft.Container(
-                    content=ft.Column([header, ft.Container(content=ft.Column([loading_col, quiz_content, result_content], scroll=ft.ScrollMode.AUTO), padding=20, expand=True)], spacing=0, expand=True),
+                    content=ft.Column(
+                        [
+                            header,
+                            ft.Container(
+                                content=ft.Column([loading_col, quiz_content, result_content], scroll=ft.ScrollMode.AUTO),
+                                padding=20,
+                                expand=True,
+                            ),
+                        ],
+                        spacing=0,
+                        expand=True,
+                    ),
                     bgcolor=ft.Colors.SURFACE,
                     expand=True,
                 ),
                 expand=True,
             )
         ],
-        padding=0, spacing=0,
+        padding=0,
+        spacing=0,
     )
 
+
 def _parse_quiz_json(text: str) -> list[dict] | None:
-    if not text: return None
+    if not text:
+        return None
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
     try:
         data = json.loads(text)
-        if isinstance(data, list): return data
-    except: pass
+        if isinstance(data, list):
+            return data
+    except Exception:
+        pass
     match = re.search(r"\[[\s\S]*\]", text)
     if match:
-        try: return json.loads(match.group(0))
-        except: pass
+        try:
+            return json.loads(match.group(0))
+        except Exception:
+            pass
     return None

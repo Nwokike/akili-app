@@ -1,5 +1,3 @@
-
-
 import asyncio
 from collections.abc import Callable
 
@@ -9,20 +7,14 @@ from core.theme import AppColors
 
 
 class RecordingIndicator(ft.Container):
-
     def __init__(self, page: ft.Page, on_stop: Callable[[], None], max_duration: int = 300):
         self._page = page
         self._on_stop = on_stop
         self._max_duration = max_duration
         self._elapsed = 0
         self._is_running = False
-        
-        self._timer_text = ft.Text(
-            "00:00",
-            size=16,
-            weight=ft.FontWeight.W_500,
-            color=AppColors.ERROR
-        )
+
+        self._timer_text = ft.Text("00:00", size=16, weight=ft.FontWeight.W_500, color=AppColors.ERROR)
 
         self._mic_icon = ft.Icon(
             ft.Icons.MIC_ROUNDED,
@@ -57,7 +49,7 @@ class RecordingIndicator(ft.Container):
                         ],
                         spacing=8,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                    )
+                    ),
                 ],
                 alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -75,7 +67,6 @@ class RecordingIndicator(ft.Container):
         self.visible = True
         self._update_timer_text()
         self.update()
-        
 
         self._page.run_task(self._timer_loop)
         self._page.run_task(self._pulse_loop)
@@ -108,7 +99,7 @@ class RecordingIndicator(ft.Container):
             self._mic_icon.update()
             scale_up = not scale_up
             await asyncio.sleep(0.5)
-        
+
         # Reset scale when stopped
         try:
             self._mic_icon.scale = 1.0

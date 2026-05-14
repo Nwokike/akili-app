@@ -1,6 +1,7 @@
 import json
 import random
 import re
+
 import flet as ft
 
 from core.state import state
@@ -17,7 +18,8 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
 
     subject_field = ft.TextField(
         hint_text="Search or type a subject...",
-        border_radius=AppStyles.RADIUS, filled=True,
+        border_radius=AppStyles.RADIUS,
+        filled=True,
         prefix_icon=ft.Icons.SEARCH_ROUNDED,
         bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
         border_color=ft.Colors.TRANSPARENT,
@@ -37,10 +39,11 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
         page.update()
 
     # Determine suggested subjects dynamically from metadata or default
-    suggested_subjects = state.metadata.get("suggested_subjects", [
-        "Mathematics", "Physics", "Chemistry", "Biology", "English", "History", "Geography", "Computer Science"
-    ])
-    
+    suggested_subjects = state.metadata.get(
+        "suggested_subjects",
+        ["Mathematics", "Physics", "Chemistry", "Biology", "English", "History", "Geography", "Computer Science"],
+    )
+
     for subj in suggested_subjects:
         text_ctrl = ft.Text(subj, size=14)
         container = ft.Container(
@@ -80,35 +83,31 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
                 status_text.color = AppColors.ERROR
                 return
 
-            prompt = (
-                f"Generate curriculum for {subject} at {state.education_level} "
-                f"in the {state.education_system} system ({state.country}). "
-                "Tailor it exactly to the regional standards."
-            )
-            
+            prompt = f"Generate curriculum for {subject} at {state.education_level} in the {state.education_system} system ({state.country}). Tailor it exactly to the regional standards."
+
             response = await ai_service.chat(
                 messages=[{"role": "user", "content": prompt}],
                 system_prompt="Return ONLY valid JSON with 'modules' list. Each module has 'title' and 'topics' list.",
+                use_tools=False,
             )
-            
-            from views.course_creation import _extract_json
+
             curriculum = _extract_json(response.get("content", ""))
-            
+
             if curriculum and "modules" in curriculum:
-                color_idx = random.randint(0, len(AppColors.SUBJECT_COLORS)-1)
+                color_idx = random.randint(0, len(AppColors.SUBJECT_COLORS) - 1)
                 course_id = await db_manager.add_course(
-                    subject=subject, 
-                    level=state.education_level, 
-                    curriculum_json=json.dumps(curriculum), 
-                    color_index=color_idx
+                    subject=subject,
+                    level=state.education_level,
+                    curriculum_json=json.dumps(curriculum),
+                    color_index=color_idx,
                 )
                 for i, mod in enumerate(curriculum["modules"]):
                     await db_manager.add_module(
-                        course_id=course_id, 
-                        title=mod["title"], 
-                        topics_json=json.dumps(mod.get("topics", [])), 
-                        order_num=i, 
-                        unlocked=1 if i == 0 else 0
+                        course_id=course_id,
+                        title=mod["title"],
+                        topics_json=json.dumps(mod.get("topics", [])),
+                        order_num=i,
+                        unlocked=1 if i == 0 else 0,
                     )
                 await navigate("/dashboard")
             else:
@@ -124,7 +123,8 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
         "Generate My Path",
         icon=ft.Icons.AUTO_AWESOME_ROUNDED,
         style=ft.ButtonStyle(
-            bgcolor=AppColors.PRIMARY, color=ft.Colors.WHITE,
+            bgcolor=AppColors.PRIMARY,
+            color=ft.Colors.WHITE,
             shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
             padding=24,
         ),
@@ -133,10 +133,13 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
     )
 
     header = ft.Container(
-        content=ft.Row([
-            ft.IconButton(icon=ft.Icons.ARROW_BACK_ROUNDED, on_click=lambda e: page.run_task(navigate, "/dashboard")),
-            ft.Text("New Course", size=18, weight=ft.FontWeight.BOLD),
-        ], spacing=8),
+        content=ft.Row(
+            [
+                ft.IconButton(icon=ft.Icons.ARROW_BACK_ROUNDED, on_click=lambda e: page.run_task(navigate, "/dashboard")),
+                ft.Text("New Course", size=18, weight=ft.FontWeight.BOLD),
+            ],
+            spacing=8,
+        ),
         padding=ft.Padding(4, 8, 16, 8),
     )
 
@@ -145,27 +148,40 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
         controls=[
             ft.SafeArea(
                 ft.Container(
-                    content=ft.Column([
-                        header,
-                        ft.Container(
-                            content=ft.Column([
-                                ft.Text(f"Subject for {state.education_level}?", size=24, weight=ft.FontWeight.BOLD),
-                                ft.Text(f"System: {state.education_system} ({state.country})", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
-                                ft.Container(height=10),
-                                subject_field,
-                                ft.Container(
-                                    content=subject_list,
-                                    height=300,
-                                    bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
-                                    border_radius=AppStyles.RADIUS,
-                                    padding=10,
+                    content=ft.Column(
+                        [
+                            header,
+                            ft.Container(
+                                content=ft.Column(
+                                    [
+                                        ft.Text(f"Subject for {state.education_level}?", size=24, weight=ft.FontWeight.BOLD),
+                                        ft.Text(
+                                            f"System: {state.education_system} ({state.country})",
+                                            size=14,
+                                            color=ft.Colors.ON_SURFACE_VARIANT,
+                                        ),
+                                        ft.Container(height=10),
+                                        subject_field,
+                                        ft.Container(
+                                            content=subject_list,
+                                            height=300,
+                                            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+                                            border_radius=AppStyles.RADIUS,
+                                            padding=10,
+                                        ),
+                                        ft.Row([loading_ring, status_text], spacing=10),
+                                        generate_btn,
+                                    ],
+                                    spacing=15,
+                                    scroll=ft.ScrollMode.AUTO,
                                 ),
-                                ft.Row([loading_ring, status_text], spacing=10),
-                                generate_btn,
-                            ], spacing=15, scroll=ft.ScrollMode.AUTO),
-                            padding=20, expand=True,
-                        ),
-                    ], spacing=0, expand=True),
+                                padding=20,
+                                expand=True,
+                            ),
+                        ],
+                        spacing=0,
+                        expand=True,
+                    ),
                     bgcolor=ft.Colors.SURFACE,
                     expand=True,
                 ),
@@ -175,13 +191,19 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
         padding=0,
     )
 
+
 def _extract_json(text: str) -> dict | None:
-    if not text: return None
+    if not text:
+        return None
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
-    try: return json.loads(text)
-    except: pass
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
     match = re.search(r"\{[\s\S]*\}", text)
     if match:
-        try: return json.loads(match.group(0))
-        except: pass
+        try:
+            return json.loads(match.group(0))
+        except Exception:
+            pass
     return None

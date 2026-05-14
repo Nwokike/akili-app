@@ -10,7 +10,7 @@ class AudioService:
     def __init__(self, page: ft.Page):
         self.page = page
         self.recorder = far.AudioRecorder()
-        
+
         self.is_recording = False
         self._temp_file = ""
 
@@ -28,7 +28,7 @@ class AudioService:
     async def stop_recording(self) -> tuple[bytes, str] | None:
         if not self.is_recording:
             return None
-            
+
         try:
             await self.recorder.stop_recording()
             self.is_recording = False

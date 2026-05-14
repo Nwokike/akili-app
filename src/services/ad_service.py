@@ -1,11 +1,10 @@
-
-
 import asyncio
 
 import flet as ft
 
 try:
     import flet_ads as fta
+
     HAS_ADS = True
 except ImportError:
     HAS_ADS = False
@@ -73,7 +72,9 @@ class AdService:
                 on_error=lambda e: None,
             )
             return ft.Container(
-                content=ad, width=320, height=50,
+                content=ad,
+                width=320,
+                height=50,
                 alignment=ft.Alignment.CENTER,
             )
         except Exception:

@@ -44,17 +44,13 @@ async def search_web(query: str, max_results: int = 10, _is_retry: bool = False)
                         break
 
             print(f"[Tool] Found {len(results)} results")
-            
+
             # CLEAN AND SHORTEN RESULTS FOR THE AI
             clean_results = []
             for r in results:
                 # Remove common tracking params to keep URLs clean
                 url = r["url"].split("?")[0]
-                clean_results.append({
-                    "title": r["title"],
-                    "url": url,
-                    "snippet": r["content"][:200]
-                })
+                clean_results.append({"title": r["title"], "url": url, "snippet": r["content"][:200]})
 
             if not clean_results and not _is_retry:
                 fallback_query = re.sub(r"\s*\d{4}$", "", query).strip()
@@ -73,9 +69,7 @@ async def read_page(url: str) -> dict:
     if not url:
         return {"error": "No URL provided"}
 
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; rv:128.0) Gecko/20100101 Firefox/128.0"
-    }
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; rv:128.0) Gecko/20100101 Firefox/128.0"}
     try:
         async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
             response = await client.get(url, headers=headers)

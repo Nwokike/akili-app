@@ -1,5 +1,3 @@
-
-
 import flet as ft
 
 from core.state import state
@@ -18,6 +16,7 @@ class LifecycleManager:
 
         elif state_str == "resume":
             from services.credit_service import credit_service
+
             await credit_service.refresh_credits()
 
         self.page.update()

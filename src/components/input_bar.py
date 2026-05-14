@@ -26,56 +26,29 @@ class InputBar(ft.Container):
             text_size=14,
         )
 
-        self.mic_btn = ft.IconButton(
-            icon=ft.Icons.MIC_ROUNDED,
-            icon_color=ft.Colors.ON_SURFACE_VARIANT,
-            on_click=lambda e: self.on_mic()
-        )
+        self.mic_btn = ft.IconButton(icon=ft.Icons.MIC_ROUNDED, icon_color=ft.Colors.ON_SURFACE_VARIANT, on_click=lambda e: self.on_mic())
         self.camera_btn = ft.IconButton(
             icon=ft.Icons.CAMERA_ALT_ROUNDED,
             icon_color=ft.Colors.ON_SURFACE_VARIANT,
-            on_click=lambda e: self.on_camera()
+            on_click=lambda e: self.on_camera(),
         )
         self.attach_btn = ft.IconButton(
             icon=ft.Icons.ATTACH_FILE_ROUNDED,
             icon_color=ft.Colors.ON_SURFACE_VARIANT,
-            on_click=lambda e: self.on_attach()
+            on_click=lambda e: self.on_attach(),
         )
-        self.send_btn = ft.IconButton(
-            icon=ft.Icons.SEND_ROUNDED,
-            icon_color=AppColors.PRIMARY,
-            on_click=self._handle_send
-        )
+        self.send_btn = ft.IconButton(icon=ft.Icons.SEND_ROUNDED, icon_color=AppColors.PRIMARY, on_click=self._handle_send)
 
-
-        self.recording_indicator = RecordingIndicator(
-            page=self._page, 
-            on_stop=lambda: self.on_mic(stop=True)
-        )
+        self.recording_indicator = RecordingIndicator(page=self._page, on_stop=lambda: self.on_mic(stop=True))
 
         self.normal_input = ft.Row(
             vertical_alignment=ft.CrossAxisAlignment.END,
-            controls=[
-                self.attach_btn,
-                self.camera_btn,
-                self.text_field,
-                self.mic_btn,
-                self.send_btn
-            ]
+            controls=[self.attach_btn, self.camera_btn, self.text_field, self.mic_btn, self.send_btn],
         )
 
-        self.content = ft.Column(
-            spacing=4,
-            controls=[
-                ft.Stack([
-                    self.normal_input,
-                    self.recording_indicator
-                ])
-            ]
-        )
+        self.content = ft.Column(spacing=4, controls=[ft.Stack([self.normal_input, self.recording_indicator])])
         self.padding = ft.Padding(8, 8, 8, 12)
         self.bgcolor = ft.Colors.SURFACE_CONTAINER
-
 
     def set_recording_state(self, is_recording: bool):
         self.is_recording = is_recording
@@ -86,7 +59,7 @@ class InputBar(ft.Container):
             self.recording_indicator.stop()
             self.normal_input.visible = True
         self.update()
-        
+
     def set_disabled(self, disabled: bool):
         self.text_field.disabled = disabled
         self.send_btn.disabled = disabled

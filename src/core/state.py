@@ -3,7 +3,6 @@ import flet as ft
 
 @ft.observable
 class AppState:
-
     # User profile
     user_name: str = ""
     education_level: str = ""
@@ -11,9 +10,10 @@ class AppState:
     country: str = "Global"
     avatar_index: int = 0
     is_onboarded: bool = False
-    
-    # Metadata for dynamic UI (subjects, etc.)
+
+    # Metadata for dynamic UI (subjects, education levels, etc.)
     metadata: dict = {}
+    education_levels: list[dict] = []
 
     # Loading / status
     is_loading: bool = False
@@ -40,6 +40,7 @@ class AppState:
         self.current_course = None
         self.current_module = None
         self.metadata = {}
+        self.education_levels = []
 
     def get_level_progress(self) -> float:
         from core.constants import LEVELS

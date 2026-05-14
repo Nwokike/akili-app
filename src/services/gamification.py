@@ -1,5 +1,3 @@
-
-
 import json
 from datetime import date, timedelta
 
@@ -73,8 +71,11 @@ class GamificationService:
 
         badges.append(badge_id)
         await db_manager.update_gamification(
-            state.xp_total, state.level,
-            state.current_streak, state.best_streak, badges,
+            state.xp_total,
+            state.level,
+            state.current_streak,
+            state.best_streak,
+            badges,
         )
         return True
 
@@ -100,8 +101,11 @@ class GamificationService:
         data = await db_manager.get_gamification()
         badges = json.loads(data.get("badges_json", "[]"))
         await db_manager.update_gamification(
-            state.xp_total, state.level,
-            state.current_streak, state.best_streak, badges,
+            state.xp_total,
+            state.level,
+            state.current_streak,
+            state.best_streak,
+            badges,
         )
 
 
