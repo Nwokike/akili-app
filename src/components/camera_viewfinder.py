@@ -97,7 +97,7 @@ class CameraViewfinder(ft.Stack):
     async def show(self):
         """Initialize camera and show as overlay."""
         self._page.overlay.append(self)
-        self.update()
+        self._page.update()
         ok = await self.initialize()
         if not ok:
             self._handle_close(None)
@@ -106,7 +106,7 @@ class CameraViewfinder(ft.Stack):
         try:
             self._camera = Camera()
             self._preview_container.content = self._camera
-            self.update()
+            self._page.update()
 
             await asyncio.sleep(0.5)
 
@@ -121,7 +121,7 @@ class CameraViewfinder(ft.Stack):
                 description=self._cameras[self._current_camera_index],
                 resolution_preset=ResolutionPreset.HIGH,
             )
-            self.update()
+            self._page.update()
             return True
         except Exception as e:
             print(f"[Camera] Init error: {e}")

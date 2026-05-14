@@ -141,7 +141,7 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
             ft.Container(height=20),
             ft.Row(
                 [
-                    ft.Button("Retake", icon=ft.Icons.REPLAY_ROUNDED, on_click=lambda e: page.run_task(_generate_quiz)),
+                    ft.OutlinedButton("Retake", icon=ft.Icons.REPLAY_ROUNDED, on_click=lambda e: page.run_task(_generate_quiz)),
                     ft.FilledButton(
                         "Continue",
                         icon=ft.Icons.ARROW_FORWARD_ROUNDED,
