@@ -106,7 +106,7 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
             ),
             padding=20,
             border_radius=AppStyles.RADIUS,
-            bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.WHITE),
+            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
             border=ft.Border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.WHITE)),
         )
 

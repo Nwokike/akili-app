@@ -160,7 +160,7 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         on_send=_on_send,
         on_camera=lambda: page.run_task(CameraViewfinder(page, _on_media_result, lambda: None).show),
         on_mic=lambda: page.run_task(audio_service.start_recording),
-        on_attach=lambda: page.run_task(file_picker.pick_files),
+        on_attach=lambda: page.run_task(file_picker.pick_image),
     )
 
     return ft.View(

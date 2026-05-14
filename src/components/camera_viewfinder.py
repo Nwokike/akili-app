@@ -94,6 +94,14 @@ class CameraViewfinder(ft.Stack):
             ),
         ]
 
+    async def show(self):
+        """Initialize camera and show as overlay."""
+        self._page.overlay.append(self)
+        self.update()
+        ok = await self.initialize()
+        if not ok:
+            self._handle_close(None)
+
     async def initialize(self) -> bool:
         try:
             self._camera = Camera()
@@ -160,4 +168,9 @@ class CameraViewfinder(ft.Stack):
                 self.update()
             except Exception:
                 pass
+        try:
+            self._page.overlay.remove(self)
+            self._page.update()
+        except (ValueError, Exception):
+            pass
         self._on_close()

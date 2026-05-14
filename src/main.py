@@ -25,7 +25,7 @@ async def main(page: ft.Page):
     page.fonts = {"Inter": "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"}
     page.theme = AppTheme.get_light_theme()
     page.dark_theme = AppTheme.get_dark_theme()
-    page.theme_mode = ft.ThemeMode.LIGHT
+    page.theme_mode = ft.ThemeMode.SYSTEM
     state.theme_mode = page.theme_mode
     page.padding = 0
     page.spacing = 0
