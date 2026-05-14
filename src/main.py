@@ -47,10 +47,9 @@ async def main(page: ft.Page):
         elif not is_offline and page.banner.open:
             page.close_banner()
 
-    # Initialize Connectivity
+    # Initialize Connectivity (Service, not a Control — no need to add to page)
     connectivity = ft.Connectivity()
     connectivity.on_change = handle_connectivity_change
-    page.overlay.append(connectivity)
 
     # --- Service Initialization ---
     ad_service = AdService(page)

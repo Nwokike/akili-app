@@ -5,14 +5,6 @@ from core.theme import AppColors, AppStyles
 from database.manager import db_manager
 
 
-def _get_level_options() -> list:
-    """Return education level options, preferring AI-detected levels from state."""
-    if state.education_levels:
-        return [ft.dropdown.Option(key=lvl["id"], text=lvl["name"]) for lvl in state.education_levels]
-    # Fallback to K12 template if no AI-detected levels
-    return [ft.dropdown.Option(key=f"grade_{i}", text=f"Grade {i}") for i in range(1, 13)]
-
-
 def build_settings_view(page: ft.Page, navigate) -> ft.View:
     name_field = ft.TextField(
         value=state.user_name,
@@ -21,40 +13,23 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
         filled=True,
     )
 
-    manual_level_field = ft.TextField(
-        label="Or type your level manually",
-        hint_text="e.g. JSS 2, Form 3, Grade 5...",
+    level_field = ft.TextField(
+        value=state.education_level,
+        label="Your Class / Level",
+        hint_text="e.g. JSS 1, SSS 2, Form 3, Grade 7...",
         border_radius=AppStyles.RADIUS,
         filled=True,
-        visible=False,
-    )
-
-    level_options = _get_level_options()
-
-    def _toggle_manual(e):
-        manual_level_field.visible = not manual_level_field.visible
-        level_dropdown.visible = not manual_level_field.visible
-        page.update()
-
-    level_dropdown = ft.Dropdown(
-        value=state.education_level,
-        label="Education Level",
-        border_radius=AppStyles.RADIUS,
-        options=level_options,
     )
 
     async def _save(e):
         name = name_field.value.strip()
-        level = level_dropdown.value or manual_level_field.value.strip()
+        level = level_field.value.strip()
         if not name or not level:
             return
         state.user_name = name
         state.education_level = level
-        await db_manager.save_profile(name, level, state.education_levels, state.avatar_index)
-        page.snack_bar = ft.SnackBar(
-            ft.Text("Settings saved successfully", color=ft.Colors.WHITE),
-            bgcolor=AppColors.SUCCESS,
-        )
+        await db_manager.save_profile(name, level, avatar_index=state.avatar_index)
+        page.snack_bar = ft.SnackBar(ft.Text("Settings saved successfully", color=ft.Colors.WHITE), bgcolor=AppColors.SUCCESS)
         page.snack_bar.open = True
         page.update()
 
@@ -140,16 +115,7 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
         ft.Column(
             [
                 name_field,
-                level_dropdown,
-                manual_level_field,
-                ft.Row(
-                    [
-                        ft.TextButton(
-                            "Change level manually" if level_options else "Add level",
-                            on_click=_toggle_manual,
-                        ),
-                    ]
-                ),
+                level_field,
                 ft.FilledButton(
                     "Save Changes",
                     on_click=lambda e: page.run_task(_save),
