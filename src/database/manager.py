@@ -33,6 +33,8 @@ class DatabaseManager:
                 education_level TEXT NOT NULL,
                 education_levels TEXT DEFAULT '[]',
                 avatar_index INTEGER DEFAULT 0,
+                country TEXT DEFAULT '',
+                education_system TEXT DEFAULT '',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -151,19 +153,27 @@ class DatabaseManager:
             row = await cursor.fetchone()
             return row[0] if row else default
 
-    async def save_profile(self, name: str, education_level: str, education_levels: list[dict] | None = None, avatar_index: int = 0):
+    async def save_profile(
+        self,
+        name: str,
+        education_level: str,
+        education_levels: list[dict] | None = None,
+        avatar_index: int = 0,
+        country: str = "",
+        education_system: str = "",
+    ):
         db = await self._get_conn()
         await db.execute("DELETE FROM profile")
         levels_json = json.dumps(education_levels) if education_levels else "[]"
         await db.execute(
-            "INSERT INTO profile (name, education_level, education_levels, avatar_index) VALUES (?, ?, ?, ?)",
-            (name, education_level, levels_json, avatar_index),
+            "INSERT INTO profile (name, education_level, education_levels, avatar_index, country, education_system) VALUES (?, ?, ?, ?, ?, ?)",
+            (name, education_level, levels_json, avatar_index, country, education_system),
         )
         await db.commit()
 
     async def get_profile(self) -> dict | None:
         db = await self._get_conn()
-        async with db.execute("SELECT name, education_level, education_levels, avatar_index FROM profile LIMIT 1") as cursor:
+        async with db.execute("SELECT name, education_level, education_levels, avatar_index, country, education_system FROM profile LIMIT 1") as cursor:
             row = await cursor.fetchone()
             if row:
                 return {
@@ -171,6 +181,8 @@ class DatabaseManager:
                     "education_level": row[1],
                     "education_levels": json.loads(row[2]) if row[2] else [],
                     "avatar_index": row[3],
+                    "country": row[4] or "",
+                    "education_system": row[5] or "",
                 }
         return None
 

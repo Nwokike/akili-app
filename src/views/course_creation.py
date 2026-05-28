@@ -38,23 +38,50 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
             item["container"].border = ft.Border.all(2, AppColors.PRIMARY) if is_sel else None
         page.update()
 
-    # Determine suggested subjects dynamically from metadata or default
-    suggested_subjects = state.metadata.get(
-        "suggested_subjects",
-        ["Mathematics", "Physics", "Chemistry", "Biology", "English", "History", "Geography", "Computer Science"],
-    )
+    async def _load_suggestions():
+        subject_list.controls.clear()
+        all_items.clear()
+        loading_ring.visible = True
+        page.update()
+        try:
+            prompt = f"Suggest 10 subjects suitable for a {state.education_level} student from {state.country}. Return ONLY a JSON array of strings."
+            response = await ai_service.chat(
+                messages=[{"role": "user", "content": prompt}],
+                system_prompt="Return ONLY valid JSON array of subject names. No markdown.",
+                use_tools=False,
+            )
+            content = response.get("content", "[]")
+            try:
+                content = re.sub(r"```[a-zA-Z]*", "", content)
+                content = content.replace("```", "").strip()
+                start = content.find("[")
+                end = content.rfind("]")
+                if start != -1 and end != -1:
+                    content = content[start:end+1]
+                subjects = json.loads(content)
+            except Exception:
+                subjects = []
 
-    for subj in suggested_subjects:
-        text_ctrl = ft.Text(subj, size=14)
-        container = ft.Container(
-            content=ft.Row([text_ctrl]),
-            padding=ft.Padding(16, 12, 16, 12),
-            border_radius=AppStyles.RADIUS_SMALL,
-            on_click=lambda e, s=subj: _select(s),
-            ink=True,
-        )
-        all_items.append({"name": subj, "container": container, "text": text_ctrl})
-        subject_list.controls.append(container)
+            if isinstance(subjects, list):
+                for subj in subjects[:10]:
+                    if isinstance(subj, dict):
+                        subj = subj.get("name") or subj.get("subject") or subj.get("title") or str(subj)
+                    subj_str = str(subj)
+                    text_ctrl = ft.Text(subj_str, size=14)
+                    container = ft.Container(
+                        content=ft.Row([text_ctrl]),
+                        padding=ft.Padding(16, 12, 16, 12),
+                        border_radius=AppStyles.RADIUS_SMALL,
+                        on_click=lambda e, s=subj_str: _select(s),
+                        ink=True,
+                    )
+                    all_items.append({"name": subj_str, "container": container, "text": text_ctrl})
+                    subject_list.controls.append(container)
+        except Exception:
+            pass
+        finally:
+            loading_ring.visible = False
+            page.update()
 
     def _filter_subjects(query: str):
         query = (query or "").lower().strip()
@@ -74,7 +101,12 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
 
         generate_btn.disabled = True
         loading_ring.visible = True
+        status_text.color = ft.Colors.ON_SURFACE_VARIANT
         page.update()
+
+        def _update_status(msg):
+            status_text.value = msg
+            page.update()
 
         try:
             ok = await credit_service.spend("course_create")
@@ -83,15 +115,16 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
                 status_text.color = AppColors.ERROR
                 return
 
-            prompt = f"Generate curriculum for {subject} at {state.education_level} in the {state.education_system} system ({state.country}). Tailor it exactly to the regional standards."
+            prompt = f"Generate curriculum for {subject} at {state.education_level} level for {state.country}. Tailor it to regional standards."
 
             response = await ai_service.chat(
                 messages=[{"role": "user", "content": prompt}],
-                system_prompt="Return ONLY valid JSON with 'modules' list. Each module has 'title' and 'topics' list.",
-                use_tools=False,
+                system_prompt="Return ONLY valid JSON with 'modules' list. Each module has 'title' and 'topics' list. If you cannot find info, still try your best to return a JSON structure with general topics.",
+                on_status=_update_status
             )
 
-            curriculum = _extract_json(response.get("content", ""))
+            content = response.get("content", "")
+            curriculum = _extract_json(content)
 
             if curriculum and "modules" in curriculum:
                 color_idx = random.randint(0, len(AppColors.SUBJECT_COLORS) - 1)
@@ -111,7 +144,11 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
                     )
                 await navigate("/dashboard")
             else:
-                status_text.value = "Failed to parse curriculum"
+                status_text.color = AppColors.ERROR
+                if "I'm sorry" in content or "couldn't find" in content:
+                    status_text.value = "AI couldn't find verified syllabus info for this subject."
+                else:
+                    status_text.value = "Failed to parse curriculum."
         except Exception as ex:
             status_text.value = f"Error: {str(ex)[:50]}"
         finally:
@@ -143,6 +180,8 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
         padding=ft.Padding(4, 8, 16, 8),
     )
 
+    page.run_task(_load_suggestions)
+
     return ft.View(
         route="/create-course",
         controls=[
@@ -155,11 +194,6 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
                                 content=ft.Column(
                                     [
                                         ft.Text(f"Subject for {state.education_level}?", size=24, weight=ft.FontWeight.BOLD),
-                                        ft.Text(
-                                            f"System: {state.education_system} ({state.country})",
-                                            size=14,
-                                            color=ft.Colors.ON_SURFACE_VARIANT,
-                                        ),
                                         ft.Container(height=10),
                                         subject_field,
                                         ft.Container(

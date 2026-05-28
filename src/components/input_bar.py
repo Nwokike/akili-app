@@ -26,12 +26,12 @@ class InputBar(ft.Container):
             text_size=14,
         )
 
-        self.mic_btn = ft.IconButton(icon=ft.Icons.MIC_ROUNDED, icon_color=ft.Colors.ON_SURFACE_VARIANT, on_click=lambda e: self.on_mic())
+        self.mic_btn = ft.IconButton(icon=ft.Icons.MIC_ROUNDED, icon_color=ft.Colors.ON_SURFACE_VARIANT, on_click=self._handle_mic_start)
         self.camera_btn = ft.IconButton(icon=ft.Icons.CAMERA_ALT_ROUNDED, icon_color=ft.Colors.ON_SURFACE_VARIANT, on_click=lambda e: self.on_camera())
         self.attach_btn = ft.IconButton(icon=ft.Icons.ATTACH_FILE_ROUNDED, icon_color=ft.Colors.ON_SURFACE_VARIANT, on_click=lambda e: self.on_attach())
         self.send_btn = ft.IconButton(icon=ft.Icons.SEND_ROUNDED, icon_color=AppColors.PRIMARY, on_click=self._handle_send)
 
-        self.recording_indicator = RecordingIndicator(page=self._page, on_stop=lambda: self.on_mic(True))
+        self.recording_indicator = RecordingIndicator(page=self._page, on_stop=self._handle_mic_stop, max_duration=60)
 
         self.normal_input = ft.Row(
             vertical_alignment=ft.CrossAxisAlignment.END,
@@ -59,6 +59,14 @@ class InputBar(ft.Container):
 
     def _handle_send(self, e=None):
         text = self.text_field.value.strip() if self.text_field.value else ""
-        self._page.run_task(self.on_send(text))
+        self._page.run_task(self.on_send, text)
         self.text_field.value = ""
         self.update()
+
+    def _handle_mic_start(self, e=None):
+        self.set_recording_state(True)
+        self.on_mic()
+
+    def _handle_mic_stop(self):
+        self.set_recording_state(False)
+        self.on_mic(True)

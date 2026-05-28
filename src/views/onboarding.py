@@ -53,7 +53,7 @@ def build_onboarding_view(page: ft.Page, navigate) -> ft.View:
         state.education_levels = []
         state.is_onboarded = True
 
-        await db_manager.save_profile(name, level)
+        await db_manager.save_profile(name, level, country=country)
         await navigate("/dashboard")
 
     return ft.View(

@@ -66,11 +66,13 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
 
         if idx == correct_idx:
             score["correct"] += 1
-            feedback_text.value = "Correct! Well done."
+            explanation = questions[current_q["index"]].get("explanation", "")
+            feedback_text.value = f"Correct! {explanation}" if explanation else "Correct! Well done."
             feedback_text.color = AppColors.SUCCESS
         else:
             correct_text = questions[current_q["index"]]["options"][correct_idx]
-            feedback_text.value = f"The correct answer was: {correct_text}"
+            explanation = questions[current_q["index"]].get("explanation", "")
+            feedback_text.value = f"The correct answer was: {correct_text}. {explanation}" if explanation else f"The correct answer was: {correct_text}"
             feedback_text.color = AppColors.ERROR
 
         feedback_text.visible = True
@@ -131,6 +133,14 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
             1 if passed else 0,
         )
 
+        # Auto-unlock next module on pass
+        if passed and state.current_course:
+            all_modules = await db_manager.get_modules(state.current_course["id"])
+            for i, m in enumerate(all_modules):
+                if m["id"] == module["id"] and i + 1 < len(all_modules):
+                    await db_manager.unlock_module(all_modules[i + 1]["id"])
+                    break
+
         color = AppColors.SUCCESS if passed else AppColors.ERROR
 
         result_content.controls = [
@@ -161,9 +171,11 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         result_content.visible = False
         page.update()
 
+        lesson_cache = module.get("lesson_cache", "")
+        context = f"\n\nLesson content for reference:\n{lesson_cache[:3000]}" if lesson_cache else ""
         response = await ai_service.chat(
-            messages=[{"role": "user", "content": f"Generate 5 MCQ about {module['title']}. Return JSON array."}],
-            system_prompt="Return ONLY valid JSON array. No markdown.",
+            messages=[{"role": "user", "content": f"Generate 5 MCQs about {module['title']} from lesson content.{context}\n\nReturn a JSON array: each has 'question', 'options' (4 strings), 'correct' (0-based index)."}],
+            system_prompt="Return ONLY valid JSON array.",
             use_tools=False,
         )
         parsed = _parse_quiz_json(response.get("content", ""))
@@ -243,13 +255,23 @@ def _parse_quiz_json(text: str) -> list[dict] | None:
     try:
         data = json.loads(text)
         if isinstance(data, list):
-            return data
+            validated = []
+            for q in data:
+                if isinstance(q, dict) and "question" in q and "options" in q and "correct" in q:
+                    validated.append(q)
+            return validated if validated else None
     except Exception:
         pass
     match = re.search(r"\[[\s\S]*\]", text)
     if match:
         try:
-            return json.loads(match.group(0))
+            data = json.loads(match.group(0))
+            if isinstance(data, list):
+                validated = []
+                for q in data:
+                    if isinstance(q, dict) and "question" in q and "options" in q and "correct" in q:
+                        validated.append(q)
+                return validated if validated else None
         except Exception:
             pass
     return None

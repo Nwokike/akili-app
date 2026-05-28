@@ -123,7 +123,7 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
 
         await db_manager.save_quiz_attempt(course["id"], score["correct"], total, "", 1 if passed else 0)
         if passed:
-            await gamification_service.award_xp("exam_pass")
+            await gamification_service.award_xp("mock_exam_complete")
 
         color = AppColors.SUCCESS if passed else AppColors.ERROR
 

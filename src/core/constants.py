@@ -1,11 +1,19 @@
-API_GATEWAY = "https://akili-gateway.kiri.ng"
+API_GATEWAY = "https://api.kiri.ng"
+
+# Gateway authentication (must match GATEWAY_SECRET in Cloudflare Worker secrets)
+GATEWAY_SECRET = "mobile-v1"
+APP_VERSION = "1.0.0"
+USER_AGENT = f"AkiliApp/{APP_VERSION}"
+
+# Audio limits (must match gateway MAX_AUDIO_BODY_BYTES)
+MAX_VOICE_DURATION_SEC = 60
+MAX_AUDIO_SIZE_BYTES = 25 * 1024 * 1024  # 25MB
 
 
 class AITaskType:
     TEXT = "text"
-    VISION = "vision"
+    VISION = "multimodal"  # kiri-gateway uses "multimodal" route for vision
     AUDIO = "audio"
-    TUTOR = "tutor"
 
 
 DAILY_CREDITS = 150

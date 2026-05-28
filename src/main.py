@@ -67,6 +67,8 @@ async def main(page: ft.Page):
         state.education_level = profile["education_level"]
         state.education_levels = profile.get("education_levels", [])
         state.avatar_index = profile["avatar_index"]
+        state.country = profile.get("country", "")
+        state.education_system = profile.get("education_system", "")
         state.is_onboarded = True
     else:
         state.is_onboarded = False

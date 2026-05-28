@@ -1,4 +1,5 @@
 import json
+import re
 
 import flet as ft
 
@@ -68,7 +69,6 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
             response = await ai_service.chat(
                 messages=[{"role": "user", "content": prompt}],
                 system_prompt=f"You are Akili, a helpful AI tutor for {level} students.",
-                use_tools=False,
             )
 
             content = response.get("content", "")
@@ -87,6 +87,8 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
             page.update()
 
     def _render_lesson(content: str):
+        content = re.sub(r"\$\$(.*?)\$\$", r"\1", content, flags=re.DOTALL)
+        content = re.sub(r"\$(.*?)\$", r"\1", content)
         lesson_content.controls.clear()
         lesson_content.controls.append(
             ft.Markdown(

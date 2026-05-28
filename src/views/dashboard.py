@@ -18,14 +18,13 @@ async def build_dashboard_view(page: ft.Page, navigate) -> ft.View:
     has_unread = await db_manager.check_daily_reward_eligibility()
     notification_bell = NotificationBell(page, has_unread=has_unread)
 
-    # ── Header (Minimalist) ──────────────────────────────────────────
+    # ── Header ──────────────────────────────────────────
     header_row = ft.Container(
         content=ft.Row(
             [
                 ft.Row(
                     [
                         ft.Image(src="/icon.png", width=36, height=36),
-                        # Removed "Akili" text
                     ],
                     spacing=10,
                 ),

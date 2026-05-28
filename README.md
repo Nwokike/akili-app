@@ -5,79 +5,93 @@
 <h1 align="center">Akili</h1>
 
 <p align="center">
-  AI-powered educational platform. Learn smarter with personalized AI tutoring.
+  AI-powered learning platform — personalized tutoring, curriculum generation, and assessments for students everywhere.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android" />
-  <img src="https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows11&logoColor=white" alt="Windows" />
-  <img src="https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black" alt="Linux" />
+  <a href="#download"><img src="https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android" /></a>
+  <a href="#download"><img src="https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows11&logoColor=white" alt="Windows" /></a>
+  <a href="#download"><img src="https://img.shields.io/badge/Web-4285F4?style=flat-square&logo=google-chrome&logoColor=white" alt="Web" /></a>
   <br>
-  <img src="https://img.shields.io/badge/Built%20with-Flet%200.84-00B0FF?style=flat-square" alt="Built with Flet" />
-  <img src="https://img.shields.io/badge/AI-Gemma%204-8E24AA?style=flat-square" alt="Gemma 4" />
+  <img src="https://img.shields.io/badge/Powerby-AI-8E24AA?style=flat-square" alt="AI" />
 </p>
+
+---
+
+## Download
+
+| Platform | Download | Notes |
+|:--------:|:--------:|:------|
+| 🌐 **Web** | [**akili.kiri.ng**](https://akili.kiri.ng) | Works in any modern browser |
+| 🪟 **Windows** | [**Akili_Setup.exe**](https://github.com/Nwokike/akili-app/releases/latest/download/Akili_Setup.exe) | Windows 10/11 64-bit Installer |
+
+### Android
+
+| Variant | Download | Size |
+|:--------|:--------:|:-----|
+| 📦 **Universal APK** | [**akili.apk**](https://github.com/Nwokike/akili-app/releases/latest/download/akili.apk) | All architectures |
+| 📱 **ARM64** (most phones) | [**akili-arm64-v8a.apk**](https://github.com/Nwokike/akili-app/releases/latest/download/akili-arm64-v8a.apk) | Modern 64-bit devices |
+| 📱 **ARMv7** (older phones) | [**akili-armeabi-v7a.apk**](https://github.com/Nwokike/akili-app/releases/latest/download/akili-armeabi-v7a.apk) | 32-bit ARM devices |
+| 💻 **x86_64** (emulators) | [**akili-x86_64.apk**](https://github.com/Nwokike/akili-app/releases/latest/download/akili-x86_64.apk) | Chromebooks & emulators |
+
+---
+
+## Core Capabilities
+
+| Capability | Description |
+|:---|:---|
+| **Curriculum Generator** | AI-powered course outlines tailored to your education level and country. Generates structured modules with topic-by-topic breakdowns. |
+| **Smart Lessons** | Detailed, step-by-step lessons with learning objectives, explanations, examples, and practice problems. Cached locally for offline reading. |
+| **Interactive Quizzes** | Auto-generated multiple-choice assessments with instant feedback. Always free. |
+| **Mock Exams** | Timed full-length assessments with automatic grading and performance analytics. |
+| **AI Tutor** | Chat with an AI tutor that answers questions with web-sourced, cited explanations. Supports voice input and image attachments. |
+| **Gamification** | XP, levels (Freshman → Genius), daily streaks, and achievement badges to keep you motivated. |
 
 ---
 
 ## Features
 
-- **AI Curriculum Generator** — Creates personalized course outlines by researching official syllabi (WAEC, NECO, JAMB).
-- **Smart Lessons** — AI generates detailed lessons for each module with real curriculum data.
-- **Interactive Quizzes** — Auto-generated MCQs with instant feedback and XP rewards. Always free.
-- **Mock Exams** — Timed full-length assessments with grading and performance analytics.
-- **AI Tutor** — Ask questions, get explanations with web-sourced answers. Markdown formatted.
-- **Gamification** — XP, levels (Freshman → Genius), streaks, and achievement badges.
-- **Credit System** — 150 daily credits, resets at midnight. Quizzes are always free.
+- **Credit System** — 150 daily credits for AI actions. Practice quizzes are always free.
 - **Offline-First** — SQLite with WAL mode. Lessons cached locally after first generation.
-- **Dark Mode** — Premium dark/light themes with Outfit typography.
+- **Dark Mode** — System-aware dark/light theme switching.
+- **Cross-Platform** — Works on Android, Windows, and Web with the same experience.
+- **Voice Input** — Record voice notes; automatically transcribed and sent to your AI tutor.
+- **Image Analysis** — Upload photos of assignments; AI extracts and explains the content.
+
+---
 
 ## Architecture
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Flet (Python → Flutter) |
-| AI Backend | Self-hosted Gemma 4 31B-IT |
-| Search | DuckDuckGo (client-side, no API key) |
-| Database | `aiosqlite` (async SQLite, WAL mode) |
-| Network | `httpx` (async, connection pooling) |
-| Gateway | Cloudflare Workers (edge routing) |
+| Layer | Technology | Purpose |
+|:---|:---|:---|
+| **Frontend** | Flet | Reactive cross-platform UI |
+| **AI Gateway** | akili-gateway.kiri.ng | Multi-model AI orchestration with automatic failover |
+| **Database** | SQLite (WAL mode) | Async local storage with aiosqlite |
+| **Search** | Bing | Web content retrieval for curriculum research |
+| **Network** | httpx | Async HTTP with connection pooling |
 
-## Project Structure
+### Visual Flow
 
+```text
+┌─────────────────────────────────────────────────────┐
+│                     AKILI APP                        │
+│  ┌──────┐ ┌──────────┐ ┌───────┐ ┌──────┐ ┌──────┐ │
+│  │ Home │ │ Courses  │ │ Tutor │ │Progress│ │Settings│
+│  └──┬───┘ └────┬─────┘ └──┬────┘ └──┬───┘ └──┬───┘ │
+│     │          │          │         │         │     │
+│  ┌──┴──────────┴──────────┴─────────┴─────────┴──┐  │
+│  │         Local SQLite (aiosqlite, WAL)          │  │
+│  └──────────────────────┬─────────────────────────┘  │
+└─────────────────────────┼───────────────────────────┘
+                          │ HTTPS (akili-gateway.kiri.ng)
+                          ▼
+┌─────────────────────────────────────────────────────┐
+│             AI GATEWAY (Cloudflare Worker)            │
+│              Multi-model inference routing            │
+└─────────────────────────────────────────────────────┘
 ```
-akili/
-├── src/
-│   ├── main.py                 # Entry point, routing
-│   ├── core/
-│   │   ├── constants.py        # API config, credit costs, XP rewards
-│   │   ├── state.py            # Observable app state
-│   │   └── theme.py            # Color palette, typography
-│   ├── database/
-│   │   └── manager.py          # SQLite schema + CRUD (KTV pattern)
-│   ├── services/
-│   │   ├── ai_service.py       # AI gateway client + search-first pipeline
-│   │   ├── tools.py            # DDGS web search + content extraction
-│   │   ├── credit_service.py   # Daily credit management
-│   │   ├── gamification.py     # XP, levels, streaks, badges
-│   │   ├── lifecycle.py        # App lifecycle (KTV pattern)
-│   │   └── ad_service.py       # Mobile ad integration
-│   ├── views/
-│   │   ├── splash.py           # Animated splash screen
-│   │   ├── onboarding.py       # Name + education level + avatar
-│   │   ├── dashboard.py        # Course grid, stats, navigation
-│   │   ├── course_creation.py  # AI curriculum wizard
-│   │   ├── course_detail.py    # Module listing + unlock flow
-│   │   ├── lesson_view.py      # AI lesson display + caching
-│   │   ├── quiz_view.py        # Interactive MCQ + scoring
-│   │   ├── mock_exam.py        # Timed exam + grading
-│   │   ├── tutor_chat.py       # AI tutor with web search
-│   │   ├── progress_view.py    # Analytics dashboard
-│   │   └── settings_view.py    # Profile, theme, data management
-│   └── assets/
-│       └── icon.png            # App icon
-├── pyproject.toml              # Dependencies + flet build config
-└── README.md
-```
+
+---
 
 ## Credit System
 
@@ -89,34 +103,21 @@ akili/
 | Tutor Question | 2 |
 | **Practice Quiz** | **FREE** |
 
-**150 credits/day** — resets at midnight.
-
-## Getting Started
-
-### Prerequisites
-
-- Python 3.12+
-- `uv` (recommended) or `pip`
-
-### Run Locally
-
-```bash
-# Clone
-git clone https://github.com/Nwokike/akili-app.git
-cd akili-app
-
-# Install dependencies
-uv sync
-
-# Run
-flet run src/main.py
-```
-
-## Contributors
-
-- **Ogechi Obinwa** — ([@Ogetec-python](https://github.com/Ogetec-python))
-- **Stephen Ayankoso** — ([@Steve-ayan](https://github.com/Steve-ayan))
+**150 credits/day** — resets at midnight. Always free to practice.
 
 ---
 
-*Learn smarter, not harder* 🧠
+## Privacy & Security
+
+Akili is designed with a **Privacy-First** philosophy for educational data.
+
+1. **Local Storage**: Your course progress, lessons, and quiz history are stored entirely on your device.
+2. **Encryption**: All communication with the AI gateway is encrypted via TLS.
+3. **No Data Retention**: Raw uploaded images and voice recordings are processed ephemerally — only the extracted text is used.
+4. **No Account Required**: Use immediately without creating an account or providing personal data.
+
+---
+
+## Legal Disclaimer
+
+Akili is an AI-powered educational tool. While it uses advanced AI to generate curricula, lessons, and assessments, users are responsible for verifying the accuracy and appropriateness of generated content against official curriculum standards. Akili does not replace certified educators or official curriculum documents. The AI may occasionally produce inaccurate information — always cross-reference with authoritative sources.

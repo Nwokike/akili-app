@@ -3,14 +3,23 @@
 import asyncio
 import base64
 import json
+import logging
 import random
 import re
 
 import httpx
 
-from core.constants import API_GATEWAY, AITaskType
+from core.constants import API_GATEWAY, AITaskType, GATEWAY_SECRET, USER_AGENT
 from core.state import state
 from services.tools import AKILI_TOOLS, get_current_time, read_page, search_web
+
+logger = logging.getLogger(__name__)
+
+# Auth headers required by kiri-gateway security gate
+COMMON_HEADERS = {
+    "Authorization": f"Bearer {GATEWAY_SECRET}",
+    "User-Agent": USER_AGENT,
+}
 
 
 def get_dynamic_system_prompt(user_name="Student", education_level="unknown") -> str:
@@ -39,8 +48,16 @@ Current System Time: {current_time}
 
 class AIService:
     def __init__(self):
-        print("[AI] Initializing AIService...", flush=True)
-        self._client = httpx.AsyncClient(timeout=120.0)
+        logger.info("Initializing AIService...")
+        self._client = httpx.AsyncClient(
+            headers=COMMON_HEADERS,
+            timeout=httpx.Timeout(120.0, connect=10.0),
+            limits=httpx.Limits(
+                max_connections=10,
+                max_keepalive_connections=5,
+                keepalive_expiry=30,
+            ),
+        )
 
     async def _post_with_backoff(self, payload: dict) -> dict:
         max_retries = 5
@@ -52,25 +69,20 @@ class AIService:
                 if resp.status_code != 200:
                     try:
                         error_detail = resp.json()
-                        print(
-                            f"\n[AI Error Detail - Attempt {attempt + 1}] {json.dumps(error_detail, indent=2)}",
-                            flush=True,
-                        )
+                        logger.warning("AI Error (Attempt %d): %s", attempt + 1, json.dumps(error_detail))
                     except Exception:
-                        print(f"\n[AI Error Raw - Attempt {attempt + 1}] {resp.text}", flush=True)
-
-                    await asyncio.sleep(0.5)
+                        logger.warning("AI Error Raw (Attempt %d): %s", attempt + 1, resp.text[:300])
                     resp.raise_for_status()
 
                 return resp.json()
 
             except (httpx.HTTPStatusError, httpx.RequestError) as e:
-                print(f"[AI Attempt {attempt + 1} Failed] {str(e)}", flush=True)
+                logger.warning("AI Attempt %d Failed: %s", attempt + 1, e)
                 if attempt == max_retries - 1:
                     return {"error": f"Network overloaded after {max_retries} attempts. {str(e)}"}
 
                 delay = min(30.0, (base_delay**attempt) + random.uniform(0.5, 2.0))
-                print(f"[AI] Network busy. Retrying in {delay:.1f}s...", flush=True)
+                logger.info("Retrying in %.1fs...", delay)
                 await asyncio.sleep(delay)
 
     async def _stream_with_backoff(self, payload: dict):
@@ -147,7 +159,7 @@ class AIService:
         return resp.get("choices", [{}])[0].get("message", {}).get("content", "[Image analysis failed]")
 
     async def transcribe_audio(self, media_data: bytes, mime_type: str) -> str:
-        # WORKER ALIGNMENT: index.js expects multipart/form-data for audio routing to Groq
+        """Send audio to Whisper via gateway for transcription."""
         files = {"file": ("audio.wav", media_data, mime_type)}
         data = {
             "task_type": AITaskType.AUDIO,
@@ -155,25 +167,38 @@ class AIService:
         }
 
         try:
-            resp = await self._client.post(f"{API_GATEWAY}/chat", files=files, data=data)
+            resp = await self._client.post(
+                f"{API_GATEWAY}/chat",
+                files=files,
+                data=data,
+                headers=COMMON_HEADERS,
+                timeout=30.0,
+            )
 
             if resp.status_code != 200:
-                print(f"\n[AI Audio Error] Status: {resp.status_code}", flush=True)
-                try:
-                    error_detail = resp.json()
-                    print(f"[AI Audio Error Detail] {json.dumps(error_detail, indent=2)}", flush=True)
-                except Exception:
-                    print(f"[AI Audio Error Raw] {resp.text}", flush=True)
-
-                await asyncio.sleep(0.5)
+                logger.error("Whisper HTTP %d: %s", resp.status_code, resp.text[:200])
                 resp.raise_for_status()
 
             data_resp = resp.json()
-            return data_resp.get("choices", [{}])[0].get("message", {}).get("content", "[Audio transcription failed]")
+
+            # Whisper returns {"text": "..."}, chat completions return choices[]
+            transcript = data_resp.get("text", "")
+            if not transcript:
+                transcript = (
+                    data_resp.get("choices", [{}])[0]
+                    .get("message", {})
+                    .get("content", "")
+                )
+
+            if transcript:
+                logger.info("Transcribed %d bytes audio → '%s'", len(media_data), transcript[:80])
+                return transcript
+
+            return "[Transcription returned empty result]"
 
         except Exception as e:
-            print(f"\n[AI Audio Exception] {str(e)}", flush=True)
-            raise
+            logger.error("Audio transcription failed: %s", e)
+            return f"[Transcription failed: {e}]"
 
     async def chat_stream(
         self,

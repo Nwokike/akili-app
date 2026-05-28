@@ -28,15 +28,27 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
             return
         state.user_name = name
         state.education_level = level
-        await db_manager.save_profile(name, level, avatar_index=state.avatar_index)
+        await db_manager.save_profile(name, level, state.education_levels, state.avatar_index, state.country, state.education_system)
         page.snack_bar = ft.SnackBar(ft.Text("Settings saved successfully", color=ft.Colors.WHITE), bgcolor=AppColors.SUCCESS)
         page.snack_bar.open = True
         page.update()
 
-    def _toggle_theme(e):
-        page.theme_mode = ft.ThemeMode.DARK if page.theme_mode == ft.ThemeMode.LIGHT else ft.ThemeMode.LIGHT
+    def _on_theme_changed(e):
+        mode = e.control.value
+        if mode == "dark":
+            page.theme_mode = ft.ThemeMode.DARK
+        elif mode == "light":
+            page.theme_mode = ft.ThemeMode.LIGHT
+        else:
+            page.theme_mode = ft.ThemeMode.SYSTEM
         state.theme_mode = page.theme_mode
         page.update()
+
+    current_theme = "light"
+    if page.theme_mode == ft.ThemeMode.DARK:
+        current_theme = "dark"
+    elif page.theme_mode == ft.ThemeMode.SYSTEM:
+        current_theme = "system"
 
     async def _confirm_reset(e):
         dialog = ft.AlertDialog(
@@ -135,13 +147,23 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
         "Appearance",
         ft.Row(
             [
-                ft.Text("Dark Mode", size=16, expand=True),
-                ft.Switch(
-                    value=page.theme_mode == ft.ThemeMode.DARK,
-                    on_change=_toggle_theme,
-                    active_color=AppColors.PRIMARY,
+                ft.Icon(ft.Icons.PALETTE_ROUNDED, size=20, color=ft.Colors.ON_SURFACE_VARIANT),
+                ft.Text("Theme", size=16, expand=True),
+                ft.Dropdown(
+                    value=current_theme,
+                    width=130,
+                    options=[
+                        ft.DropdownOption(key="light", text="Light"),
+                        ft.DropdownOption(key="dark", text="Dark"),
+                        ft.DropdownOption(key="system", text="System"),
+                    ],
+                    on_select=_on_theme_changed,
+                    border_radius=AppStyles.RADIUS,
+                    text_size=14,
                 ),
-            ]
+            ],
+            spacing=12,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
         ),
     )
 
@@ -175,15 +197,6 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
                                         profile_card,
                                         appearance_card,
                                         danger_card,
-                                        ft.Container(
-                                            content=ft.Text(
-                                                "Akili v1.0 \u00b7 Built with Flet",
-                                                size=12,
-                                                color=ft.Colors.ON_SURFACE_VARIANT,
-                                            ),
-                                            alignment=ft.Alignment.CENTER,
-                                            margin=ft.Margin(0, 20, 0, 0),
-                                        ),
                                     ],
                                     spacing=16,
                                     scroll=ft.ScrollMode.AUTO,
