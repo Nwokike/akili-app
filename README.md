@@ -49,6 +49,80 @@
 
 ---
 
+## Screenshots
+
+### Desktop Experience
+
+<p align="center">
+  <img src="screenshots/home_desktop_dark.png" width="90%" alt="Home Dashboard with Courses" />
+</p>
+<p align="center"><em>Home Dashboard — view enrolled courses, progress, and quick-access to AI Tutor</em></p>
+
+<p align="center">
+  <img src="screenshots/modules_desktop_dark.png" width="90%" alt="Course Modules View" />
+</p>
+<p align="center"><em>Course Details — module-by-module learning path with progress tracking and assignment indicators</em></p>
+
+<p align="center">
+  <img src="screenshots/tutor_chat_desktop_light.png" width="90%" alt="AI Tutor Chat" />
+</p>
+<p align="center"><em>AI Tutor — streaming chat with full student context, video card embeds, voice notes, and image uploads</em></p>
+
+<p align="center">
+  <img src="screenshots/assignment_desktop_dark.png" width="90%" alt="Assignment View" />
+</p>
+<p align="center"><em>Assignment View — type or snap handwritten answers, AI-graded with per-question feedback</em></p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="screenshots/exam_objective_desktop_light.png" width="100%" alt="Mock Exam Objective" /></td>
+    <td width="50%"><img src="screenshots/exam_theory_desktop_light.png" width="100%" alt="Mock Exam Theory" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Mock Exam Section A — timed objective questions with instant feedback</em></td>
+    <td align="center"><em>Mock Exam Section B — theory questions with typed or image upload answers</em></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="50%"><img src="screenshots/progress_desktop_dark.png" width="100%" alt="Progress Dashboard" /></td>
+    <td width="50%"><img src="screenshots/home_notification_desktop_dark.png" width="100%" alt="Home with Notification" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Progress & Achievements — XP, streaks, quiz stats, badges, and shareable milestones</em></td>
+    <td align="center"><em>Notification Panel — pending assignments, daily credits, streak reminders, and study tips</em></td>
+  </tr>
+</table>
+
+### Mobile Experience
+
+<table>
+  <tr>
+    <td width="33%"><img src="screenshots/splash_mobile.png" width="100%" alt="Splash Screen" /></td>
+    <td width="33%"><img src="screenshots/home_mobile_dark.png" width="100%" alt="Home Dark" /></td>
+    <td width="33%"><img src="screenshots/home_mobile_light.png" width="100%" alt="Home Light" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Animated Splash — brand logo with auto-navigation to dashboard or onboarding</em></td>
+    <td align="center"><em>Home Dashboard (Dark) — notification badges, credit balance, course list with colored indicators</em></td>
+    <td align="center"><em>Home Dashboard (Light) — empty state with create-first-course call-to-action</em></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="50%"><img src="screenshots/credit_dialog_mobile_light.png" width="100%" alt="Credit Dialog" /></td>
+    <td width="50%"><img src="screenshots/dashboard_empty_mobile_light.png" width="100%" alt="Empty Dashboard" /></td>
+  </tr>
+  <tr>
+    <td align="center"><em>Credit Balance Panel — view daily allowance, watch rewarded ads for +5 bonus credits (30s cooldown)</em></td>
+    <td align="center"><em>Empty State — welcoming first-time users with guided course creation flow</em></td>
+  </tr>
+</table>
+
+---
+
 ## Features
 
 - **Credit System** — 150 daily credits for AI actions. Practice quizzes are always free.
