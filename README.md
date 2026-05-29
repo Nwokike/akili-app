@@ -5,7 +5,7 @@
 <h1 align="center">Akili</h1>
 
 <p align="center">
-  AI-powered learning platform — personalized tutoring, curriculum generation, and assessments for students everywhere.
+  After-School Learning App for Everyone
 </p>
 
 <p align="center">
