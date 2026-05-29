@@ -50,7 +50,7 @@ class OfflineRetryWidget(ft.Container):
                 spacing=12,
             ),
             padding=32,
-            alignment=ft.alignment.center,
+            alignment=ft.Alignment.CENTER,
             expand=True,
         )
 

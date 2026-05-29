@@ -44,7 +44,7 @@ class AdService:
                 spacing=8,
             ),
             height=height,
-            alignment=ft.alignment.center,
+            alignment=ft.Alignment.CENTER,
         )
 
     def _create_ad_container(self, ad_control: ft.Control, width: int = None) -> ft.Control:
@@ -78,7 +78,7 @@ class AdService:
             border=ft.Border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.ON_SURFACE)),
             border_radius=AppStyles.RADIUS,
             padding=ft.Padding(16, 12, 16, 12),
-            alignment=ft.alignment.center,
+            alignment=ft.Alignment.CENTER,
             margin=ft.Margin(12, 8, 12, 8),
             width=width,
         )
