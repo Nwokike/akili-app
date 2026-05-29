@@ -1,6 +1,10 @@
 import asyncio
+import logging
 
 import flet as ft
+
+logger = logging.getLogger(__name__)
+
 
 try:
     import flet_ads as fta
@@ -11,8 +15,8 @@ except ImportError:
 
 
 class AdService:
-    BANNER_ID = "ca-app-pub-5679949845754640/5591770463"
-    INTERSTITIAL_ID = "ca-app-pub-5679949845754640/8701238822"
+    BANNER_ID = "ca-app-pub-5679949845754640/1712130979"
+    INTERSTITIAL_ID = "ca-app-pub-5679949845754640/5238266847"
 
     def __init__(self, page: ft.Page):
         self.page = page
@@ -27,58 +31,92 @@ class AdService:
         except Exception:
             return False
 
-    def _create_ad_container(self, ad_control: ft.Control, width: int) -> ft.Control:
+    def _get_mock_ad_control(self, height: int = 50) -> ft.Control:
+        from core.theme import AppColors
+
         return ft.Container(
-            content=ft.Column(
+            content=ft.Row(
                 [
-                    ad_control,
-                    ft.Text(
-                        "Akili is free. Ads help keep it that way.",
-                        size=11,
-                        color=ft.Colors.ON_SURFACE_VARIANT,
-                        text_align=ft.TextAlign.CENTER,
-                    ),
+                    ft.Icon(ft.Icons.AUTO_AWESOME_ROUNDED, color=AppColors.PRIMARY, size=18),
+                    ft.Text("Learn Smart with Akili Premium", size=13, weight=ft.FontWeight.W_600),
                 ],
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=5,
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=8,
             ),
-            width=width,
-            alignment=ft.Alignment.CENTER,
-            padding=ft.Padding(0, 10, 0, 10),
+            height=height,
+            alignment=ft.alignment.center,
         )
 
-    def get_banner_ad(self) -> ft.Control:
-        if not self._is_mobile():
-            return ft.Container(width=0, height=0)
-        try:
-            ad = fta.BannerAd(
-                unit_id=self.BANNER_ID,
-                width=320,
-                height=100,
-                on_error=lambda e: None,
-            )
-            return self._create_ad_container(ad, width=320)
-        except Exception:
-            return ft.Container(width=0, height=0)
+    def _create_ad_container(self, ad_control: ft.Control, width: int = None) -> ft.Control:
+        from core.theme import AppStyles
+
+        inner_content = ft.Column(
+            [
+                ft.Text(
+                    "SPONSORED",
+                    size=9,
+                    weight=ft.FontWeight.W_700,
+                    color=ft.Colors.ON_SURFACE_VARIANT,
+                    style=ft.TextStyle(letter_spacing=1.5),
+                ),
+                ad_control,
+                ft.Text(
+                    "Ads support the developer and keep the app free",
+                    size=9,
+                    color=ft.Colors.ON_SURFACE_VARIANT,
+                    text_align=ft.TextAlign.CENTER,
+                ),
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=8,
+            tight=True,
+        )
+
+        return ft.Container(
+            content=inner_content,
+            bgcolor=ft.Colors.with_opacity(0.04, ft.Colors.ON_SURFACE),
+            border=ft.Border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.ON_SURFACE)),
+            border_radius=AppStyles.RADIUS,
+            padding=ft.Padding(16, 12, 16, 12),
+            alignment=ft.alignment.center,
+            margin=ft.Margin(12, 8, 12, 8),
+            width=width,
+        )
+
+    def get_banner_ad(self, width: int = None, height: int = 50) -> ft.Control:
+        if self._is_mobile():
+            try:
+                ad = fta.BannerAd(
+                    unit_id=self.BANNER_ID,
+                    width=320 if width is None else width,
+                    height=height,
+                    on_error=lambda e: None,
+                )
+                return self._create_ad_container(ad, width=width)
+            except Exception:
+                pass
+
+        mock_ad = self._get_mock_ad_control(height=height)
+        return self._create_ad_container(mock_ad, width=width)
 
     def get_anchor_banner(self) -> ft.Control:
-        if not self._is_mobile():
-            return ft.Container(width=0, height=0)
-        try:
-            ad = fta.BannerAd(
-                unit_id=self.BANNER_ID,
-                width=320,
-                height=50,
-                on_error=lambda e: None,
-            )
-            return ft.Container(
-                content=ad,
-                width=320,
-                height=50,
-                alignment=ft.Alignment.CENTER,
-            )
-        except Exception:
-            return ft.Container(width=0, height=0)
+        if self._is_mobile():
+            try:
+                ad = fta.BannerAd(
+                    unit_id=self.BANNER_ID,
+                    width=320,
+                    height=50,
+                    on_error=lambda e: None,
+                )
+                return ft.Container(
+                    content=ad,
+                    width=320,
+                    height=50,
+                    alignment=ft.Alignment.CENTER,
+                )
+            except Exception:
+                pass
+        return ft.Container(width=0, height=0)
 
     async def preload_interstitial(self, on_close=None):
         self._on_interstitial_close = on_close
@@ -110,3 +148,42 @@ class AdService:
             except Exception:
                 return False
         return False
+
+    async def show_rewarded_interstitial(self, on_close) -> bool:
+        """Show a rewarded interstitial ad, triggering on_close when closed."""
+        if not HAS_ADS or not self._is_mobile():
+            # If offline/desktop, simulate successful completion of ad
+            if asyncio.iscoroutinefunction(on_close):
+                await on_close()
+            else:
+                on_close()
+            return True
+
+        try:
+            # Create a brand new instance of InterstitialAd to avoid Flet reuse errors
+            async def _show(e):
+                await e.control.show()
+
+            async def _close(e):
+                self._active_rewarded_ad = None  # Clean reference to prevent leaks
+                if asyncio.iscoroutinefunction(on_close):
+                    await on_close()
+                else:
+                    on_close()
+
+            # Store a strong reference to prevent immediate python garbage collection
+            self._active_rewarded_ad = fta.InterstitialAd(
+                unit_id=self.INTERSTITIAL_ID,
+                on_load=lambda e: self.page.run_task(_show, e),
+                on_close=lambda e: self.page.run_task(_close, e),
+                on_error=lambda e: logger.error("Rewarded Interstitial error: %s", e.data),
+            )
+            return True
+        except Exception as err:
+            logger.error("Failed to trigger rewarded interstitial: %s", err)
+            # Sim fallback in case of errors on unsupported platforms
+            if asyncio.iscoroutinefunction(on_close):
+                await on_close()
+            else:
+                on_close()
+            return False

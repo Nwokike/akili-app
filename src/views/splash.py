@@ -2,6 +2,7 @@ import asyncio
 
 import flet as ft
 
+from core.constants import APP_TAGLINE
 from core.state import state
 from core.theme import AppColors
 
@@ -16,7 +17,7 @@ def build_splash_view(page: ft.Page, navigate) -> ft.View:
     )
 
     tagline = ft.Text(
-        "Learn Smarter with Akili",
+        APP_TAGLINE,
         size=16,
         weight=ft.FontWeight.W_500,
         color=AppColors.PRIMARY,

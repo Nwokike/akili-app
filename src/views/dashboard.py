@@ -1,14 +1,21 @@
 import flet as ft
 
+from components.credit_dialog import show_credits_dialog
 from components.notification_bell import NotificationBell
 from core.state import state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager
+from services.credit_service import credit_service
 
 
 async def build_dashboard_view(page: ft.Page, navigate) -> ft.View:
     ad_service = page.data.get("ad_service")
     courses = await db_manager.get_courses()
+
+    credits_text = ft.Text(f"{state.credits_remaining}", size=12, weight=ft.FontWeight.W_600)
+    if not hasattr(state, "credit_text_controls"):
+        state.credit_text_controls = []
+    state.credit_text_controls.append(credits_text)
 
     def _toggle_theme(e):
         page.theme_mode = ft.ThemeMode.LIGHT if page.theme_mode == ft.ThemeMode.DARK else ft.ThemeMode.DARK
@@ -16,7 +23,14 @@ async def build_dashboard_view(page: ft.Page, navigate) -> ft.View:
         page.update()
 
     has_unread = await db_manager.check_daily_reward_eligibility()
-    notification_bell = NotificationBell(page, has_unread=has_unread)
+    pending_assignments = await db_manager.get_pending_assignments()
+    notification_bell = NotificationBell(
+        page,
+        has_unread=has_unread,
+        pending_assignments=len(pending_assignments),
+        navigate=navigate,
+    )
+    notification_bell.set_assignments(pending_assignments)
 
     # ── Header ──────────────────────────────────────────
     header_row = ft.Container(
@@ -34,13 +48,14 @@ async def build_dashboard_view(page: ft.Page, navigate) -> ft.View:
                             content=ft.Row(
                                 [
                                     ft.Icon(ft.Icons.SAVINGS_ROUNDED, size=14, color=AppColors.ACCENT),
-                                    ft.Text(f"{state.credits_remaining}", size=12, weight=ft.FontWeight.W_600),
+                                    credits_text,
                                 ],
                                 spacing=4,
                             ),
                             padding=ft.Padding(12, 6, 12, 6),
                             bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.ON_SURFACE),
                             border_radius=AppStyles.RADIUS_SMALL,
+                            on_click=lambda e: show_credits_dialog(page, credit_service, ad_service),
                         ),
                         notification_bell,
                         ft.IconButton(

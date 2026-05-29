@@ -4,6 +4,7 @@ import re
 
 import flet as ft
 
+from core.ai_utils import extract_json_array, extract_json_object, validate_curriculum, validate_subject_list
 from core.state import state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager
@@ -12,18 +13,19 @@ from services.credit_service import credit_service
 
 
 def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
+    ad_service = page.data.get("ad_service")
     selected_subject = {"value": ""}
     status_text = ft.Text("", size=13, color=ft.Colors.ON_SURFACE_VARIANT)
     loading_ring = ft.ProgressRing(width=24, height=24, visible=False, stroke_width=2, color=AppColors.PRIMARY)
 
-    subject_field = ft.TextField(
-        hint_text="Search or type a subject...",
+    custom_subject_field = ft.TextField(
+        label="Type Custom Subject",
+        hint_text="e.g. Organic Chemistry, African History...",
         border_radius=AppStyles.RADIUS,
         filled=True,
-        prefix_icon=ft.Icons.SEARCH_ROUNDED,
         bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
         border_color=ft.Colors.TRANSPARENT,
-        on_change=lambda e: _filter_subjects(e.control.value),
+        visible=False,
     )
 
     subject_list = ft.Column(spacing=4, scroll=ft.ScrollMode.AUTO)
@@ -31,7 +33,12 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
 
     def _select(name: str):
         selected_subject["value"] = name
-        subject_field.value = name
+        if name == "Other":
+            custom_subject_field.visible = True
+        else:
+            custom_subject_field.visible = False
+            custom_subject_field.value = ""
+
         for item in all_items:
             is_sel = item["name"] == name
             item["container"].bgcolor = ft.Colors.with_opacity(0.1, AppColors.PRIMARY) if is_sel else ft.Colors.TRANSPARENT
@@ -39,33 +46,44 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
         page.update()
 
     async def _load_suggestions():
+        from components.offline_retry import OfflineRetryWidget
+
+        if not state.is_online:
+            body_container.content = OfflineRetryWidget(
+                page,
+                on_retry=_load_suggestions,
+                message="Akili needs an active internet connection to suggest subjects.",
+            )
+            page.update()
+            return
+
+        body_container.content = form_layout
+        page.update()
+
         subject_list.controls.clear()
         all_items.clear()
         loading_ring.visible = True
         page.update()
         try:
             prompt = f"Suggest 10 subjects suitable for a {state.education_level} student from {state.country}. Return ONLY a JSON array of strings."
-            response = await ai_service.chat(
+
+            def val_subjects(text):
+                arr = extract_json_array(text)
+                if not arr:
+                    return None
+                subjects = validate_subject_list(arr)
+                return subjects if subjects else None
+
+            response = await ai_service.chat_with_healing(
                 messages=[{"role": "user", "content": prompt}],
+                validation_func=val_subjects,
                 system_prompt="Return ONLY valid JSON array of subject names. No markdown.",
                 use_tools=False,
             )
-            content = response.get("content", "[]")
-            try:
-                content = re.sub(r"```[a-zA-Z]*", "", content)
-                content = content.replace("```", "").strip()
-                start = content.find("[")
-                end = content.rfind("]")
-                if start != -1 and end != -1:
-                    content = content[start:end+1]
-                subjects = json.loads(content)
-            except Exception:
-                subjects = []
+            subjects = response.get("parsed", [])
 
-            if isinstance(subjects, list):
+            if isinstance(subjects, list) and subjects:
                 for subj in subjects[:10]:
-                    if isinstance(subj, dict):
-                        subj = subj.get("name") or subj.get("subject") or subj.get("title") or str(subj)
                     subj_str = str(subj)
                     text_ctrl = ft.Text(subj_str, size=14)
                     container = ft.Container(
@@ -77,24 +95,43 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
                     )
                     all_items.append({"name": subj_str, "container": container, "text": text_ctrl})
                     subject_list.controls.append(container)
+
+                # Append Other option
+                other_text = ft.Text("Other (Type custom subject...)", size=14, color=AppColors.PRIMARY, weight=ft.FontWeight.BOLD)
+                other_container = ft.Container(
+                    content=ft.Row([other_text]),
+                    padding=ft.Padding(16, 12, 16, 12),
+                    border_radius=AppStyles.RADIUS_SMALL,
+                    on_click=lambda e: _select("Other"),
+                    ink=True,
+                )
+                all_items.append({"name": "Other", "container": other_container, "text": other_text})
+                subject_list.controls.append(other_container)
         except Exception:
             pass
         finally:
             loading_ring.visible = False
             page.update()
 
-    def _filter_subjects(query: str):
-        query = (query or "").lower().strip()
-        selected_subject["value"] = subject_field.value.strip()
-        for item in all_items:
-            match = not query or query in item["name"].lower()
-            item["container"].visible = match
+    async def _generate(e=None):
+        from components.offline_retry import OfflineRetryWidget
+
+        if not state.is_online:
+            body_container.content = OfflineRetryWidget(
+                page,
+                on_retry=lambda: _generate(e),
+                message="Akili needs an active internet connection to generate your learning path.",
+            )
+            page.update()
+            return
+
+        body_container.content = form_layout
         page.update()
 
-    async def _generate(e=None):
-        subject = subject_field.value.strip() if subject_field.value else selected_subject["value"]
+        subject = custom_subject_field.value.strip() if selected_subject["value"] == "Other" else selected_subject["value"]
+
         if not subject:
-            status_text.value = "Please enter a subject"
+            status_text.value = "Please select or type a subject"
             status_text.color = AppColors.ERROR
             page.update()
             return
@@ -117,14 +154,21 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
 
             prompt = f"Generate curriculum for {subject} at {state.education_level} level for {state.country}. Tailor it to regional standards."
 
-            response = await ai_service.chat(
+            def val_curriculum(text):
+                obj = extract_json_object(text)
+                if not obj:
+                    return None
+                curr = validate_curriculum(obj)
+                return curr if curr else None
+
+            response = await ai_service.chat_with_healing(
                 messages=[{"role": "user", "content": prompt}],
+                validation_func=val_curriculum,
                 system_prompt="Return ONLY valid JSON with 'modules' list. Each module has 'title' and 'topics' list. If you cannot find info, still try your best to return a JSON structure with general topics.",
-                on_status=_update_status
+                on_status=_update_status,
             )
 
-            content = response.get("content", "")
-            curriculum = _extract_json(content)
+            curriculum = response.get("parsed")
 
             if curriculum and "modules" in curriculum:
                 color_idx = random.randint(0, len(AppColors.SUBJECT_COLORS) - 1)
@@ -145,6 +189,7 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
                 await navigate("/dashboard")
             else:
                 status_text.color = AppColors.ERROR
+                content = response.get("content", "")
                 if "I'm sorry" in content or "couldn't find" in content:
                     status_text.value = "AI couldn't find verified syllabus info for this subject."
                 else:
@@ -169,6 +214,32 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
         width=float("inf"),
     )
 
+    form_layout = ft.Column(
+        [
+            ft.Text(f"Subject for {state.education_level}?", size=22, weight=ft.FontWeight.BOLD),
+            ft.Text("Select a suggested subject below:", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
+            ft.Container(
+                content=subject_list,
+                height=260,
+                bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+                border_radius=AppStyles.RADIUS,
+                padding=10,
+            ),
+            custom_subject_field,
+            ft.Row([loading_ring, status_text], spacing=10),
+            generate_btn,
+            ad_service.get_banner_ad() if ad_service else ft.Container(),
+        ],
+        spacing=15,
+        scroll=ft.ScrollMode.AUTO,
+    )
+
+    body_container = ft.Container(
+        content=form_layout,
+        padding=20,
+        expand=True,
+    )
+
     header = ft.Container(
         content=ft.Row(
             [
@@ -190,28 +261,7 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
                     content=ft.Column(
                         [
                             header,
-                            ft.Container(
-                                content=ft.Column(
-                                    [
-                                        ft.Text(f"Subject for {state.education_level}?", size=24, weight=ft.FontWeight.BOLD),
-                                        ft.Container(height=10),
-                                        subject_field,
-                                        ft.Container(
-                                            content=subject_list,
-                                            height=300,
-                                            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
-                                            border_radius=AppStyles.RADIUS,
-                                            padding=10,
-                                        ),
-                                        ft.Row([loading_ring, status_text], spacing=10),
-                                        generate_btn,
-                                    ],
-                                    spacing=15,
-                                    scroll=ft.ScrollMode.AUTO,
-                                ),
-                                padding=20,
-                                expand=True,
-                            ),
+                            body_container,
                         ],
                         spacing=0,
                         expand=True,

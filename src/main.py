@@ -1,6 +1,6 @@
 import flet as ft
 
-from core.state import state
+from core.state import check_internet_connection, state
 from core.theme import AppTheme
 from database.manager import db_manager
 from services.ad_service import AdService
@@ -10,7 +10,7 @@ from services.lifecycle import LifecycleManager
 
 
 async def main(page: ft.Page):
-    page.title = "Akili"
+    page.title = "Akili — After-School Learning App"
 
     def global_error_handler(e):
         page.snack_bar = ft.SnackBar(
@@ -42,14 +42,24 @@ async def main(page: ft.Page):
     async def handle_connectivity_change(e: ft.ConnectivityChangeEvent):
         # 'none' indicates no network connection
         is_offline = any(r.value == "none" for r in e.connectivity)
-        if is_offline and not page.banner.open:
+        if is_offline:
+            state.is_online = False
+        else:
+            state.is_online = await check_internet_connection()
+
+        if not state.is_online and not page.banner.open:
             page.show_banner(offline_banner)
-        elif not is_offline and page.banner.open:
+        elif state.is_online and page.banner.open:
             page.close_banner()
 
     # Initialize Connectivity (Service, not a Control — no need to add to page)
     connectivity = ft.Connectivity()
     connectivity.on_change = handle_connectivity_change
+
+    # Perform initial active connectivity verification
+    state.is_online = await check_internet_connection()
+    if not state.is_online:
+        page.show_banner(offline_banner)
 
     # --- Service Initialization ---
     ad_service = AdService(page)
@@ -75,7 +85,19 @@ async def main(page: ft.Page):
 
     await credit_service.refresh_credits()
     await gamification_service.load_state()
-    await gamification_service.update_streak()
+    streak_result = await gamification_service.update_streak()
+
+    # Auto-show share sheet on streak milestones
+    if streak_result.get("events"):
+        for ev in streak_result["events"]:
+            if ev["type"] == "streak":
+                from services.share_service import ShareType, show_share_sheet
+
+                show_share_sheet(page, ShareType.STREAK, ev["data"])
+
+    # Load AI Search Settings from DB
+    state.search_region = await db_manager.get_setting("search_region", "wt-wt")
+    state.safesearch_level = await db_manager.get_setting("safesearch_level", "on")
 
     page.data = {"ad_service": ad_service}
 
@@ -147,6 +169,11 @@ async def main(page: ft.Page):
             page.views.append(await build_timetable_view(page, navigate))
 
         # --- New Routes ---
+        elif page.route.startswith("/video_player"):
+            from views.video_player import build_video_player_view
+
+            page.views.append(build_video_player_view(page, navigate))
+
         elif page.route == "/premium":
             from views.premium_preview import get_premium_preview_view
 
@@ -161,6 +188,11 @@ async def main(page: ft.Page):
             from views.parent_portal import get_parent_portal_view
 
             page.views.append(await get_parent_portal_view(page))  # Added await
+
+        elif page.route == "/assignment":
+            from views.assignment_view import build_assignment_view
+
+            page.views.append(await build_assignment_view(page, navigate))
 
         page.update()
 

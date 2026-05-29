@@ -3,6 +3,11 @@ API_GATEWAY = "https://api.kiri.ng"
 # Gateway authentication (must match GATEWAY_SECRET in Cloudflare Worker secrets)
 GATEWAY_SECRET = "mobile-v1"
 APP_VERSION = "1.0.0"
+APP_NAME = "Akili"
+APP_TAGLINE = "After-School Learning App for Everyone"
+APP_FULL_NAME = f"{APP_NAME} — {APP_TAGLINE}"
+PLAYSTORE_URL = "https://play.google.com/store/apps/details?id=ng.kiri.akili"
+SHARE_HASHTAG = "#AkiliApp #LearnSmart"
 USER_AGENT = f"AkiliApp/{APP_VERSION}"
 
 # Audio limits (must match gateway MAX_AUDIO_BODY_BYTES)
@@ -25,6 +30,7 @@ CREDIT_COSTS = {
     "tutor_question": 2,
     "tutor_media": 3,
     "study_plan": 5,
+    "assignment_eval": 5,
 }
 
 XP_REWARDS = {
@@ -35,6 +41,9 @@ XP_REWARDS = {
     "daily_streak": 15,
     "course_create": 20,
     "tutor_question": 5,
+    "assignment_on_time": 30,
+    "assignment_late": 10,
+    "assignment_perfect": 50,
 }
 
 LEVELS = [
@@ -252,4 +261,4 @@ COUNTRIES = sorted(
         "Zambia",
         "Zimbabwe",
     ]
-)
+) + ["Other"]

@@ -2,7 +2,8 @@
 
 import json
 import os
-from datetime import date, datetime
+import uuid
+from datetime import date, datetime, timedelta
 
 import aiosqlite
 
@@ -64,27 +65,56 @@ class DatabaseManager:
             )
         """)
 
+        # v2: supports mixed question types + student answers + AI evaluations
         await db.execute("""
             CREATE TABLE IF NOT EXISTS quiz_attempts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 module_id INTEGER REFERENCES modules(id),
-                score INTEGER,
-                total INTEGER,
+                score REAL,
+                total REAL,
                 questions_json TEXT,
+                answers_json TEXT,
+                evaluations_json TEXT,
                 passed INTEGER DEFAULT 0,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
+        # v2: mock exams store full questions/answers/evaluations
         await db.execute("""
             CREATE TABLE IF NOT EXISTS assessments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 course_id INTEGER REFERENCES courses(id),
-                score INTEGER,
-                total INTEGER,
+                score REAL,
+                total REAL,
                 grade TEXT,
                 duration_seconds INTEGER,
+                questions_json TEXT,
+                answers_json TEXT,
+                evaluations_json TEXT,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # v2: assignments system
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS assignments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                module_id INTEGER REFERENCES modules(id) ON DELETE CASCADE,
+                course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+                title TEXT NOT NULL,
+                description TEXT,
+                questions_json TEXT,
+                status TEXT DEFAULT 'pending',
+                due_date TEXT,
+                submitted_at TIMESTAMP,
+                graded_at TIMESTAMP,
+                submission_json TEXT,
+                evaluation_json TEXT,
+                score REAL,
+                max_score REAL DEFAULT 100,
+                feedback TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
@@ -109,19 +139,16 @@ class DatabaseManager:
             )
         """)
 
+        # v2: chat history is session-based, not module-scoped
         await db.execute("""
             CREATE TABLE IF NOT EXISTS chat_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                module_id INTEGER UNIQUE REFERENCES modules(id) ON DELETE CASCADE,
+                session_id TEXT NOT NULL,
                 messages_json TEXT,
+                context_snapshot TEXT,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-
-        await db.execute("CREATE INDEX IF NOT EXISTS idx_modules_course ON modules(course_id)")
-        await db.execute("CREATE INDEX IF NOT EXISTS idx_quiz_module ON quiz_attempts(module_id)")
-        await db.execute("CREATE INDEX IF NOT EXISTS idx_credits_date ON credits_log(date)")
-        await db.execute("CREATE INDEX IF NOT EXISTS idx_assessments_course ON assessments(course_id)")
 
         await db.execute("""
             CREATE TABLE IF NOT EXISTS settings (
@@ -140,7 +167,19 @@ class DatabaseManager:
             )
         """)
 
+        # Indexes
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_modules_course ON modules(course_id)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_quiz_module ON quiz_attempts(module_id)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_credits_date ON credits_log(date)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_assessments_course ON assessments(course_id)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_assignments_module ON assignments(module_id)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_assignments_course ON assignments(course_id)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_assignments_status ON assignments(status)")
+        await db.execute("CREATE INDEX IF NOT EXISTS idx_chat_session ON chat_history(session_id)")
+
         await db.commit()
+
+    # ── Settings ──────────────────────────────────────────────
 
     async def set_setting(self, key: str, value: str):
         db = await self._get_conn()
@@ -152,6 +191,8 @@ class DatabaseManager:
         async with db.execute("SELECT value FROM settings WHERE key = ?", (key,)) as cursor:
             row = await cursor.fetchone()
             return row[0] if row else default
+
+    # ── Profile ───────────────────────────────────────────────
 
     async def save_profile(
         self,
@@ -185,6 +226,8 @@ class DatabaseManager:
                     "education_system": row[5] or "",
                 }
         return None
+
+    # ── Courses ───────────────────────────────────────────────
 
     async def add_course(self, subject: str, level: str, curriculum_json: str, color_index: int = 0) -> int:
         db = await self._get_conn()
@@ -220,8 +263,11 @@ class DatabaseManager:
     async def delete_course(self, course_id: int):
         db = await self._get_conn()
         await db.execute("DELETE FROM modules WHERE course_id = ?", (course_id,))
+        await db.execute("DELETE FROM assignments WHERE course_id = ?", (course_id,))
         await db.execute("DELETE FROM courses WHERE id = ?", (course_id,))
         await db.commit()
+
+    # ── Modules ───────────────────────────────────────────────
 
     async def add_module(self, course_id: int, title: str, topics_json: str, order_num: int, unlocked: int = 0):
         db = await self._get_conn()
@@ -267,24 +313,77 @@ class DatabaseManager:
         await db.execute("UPDATE modules SET is_completed = 1 WHERE id = ?", (module_id,))
         await db.commit()
 
-    async def save_quiz_attempt(self, module_id: int, score: int, total: int, questions_json: str, passed: int):
+        # Recalculate overall course progress
+        async with db.execute("SELECT course_id FROM modules WHERE id = ?", (module_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                course_id = row[0]
+                async with db.execute(
+                    "SELECT COUNT(*), SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) FROM modules WHERE course_id = ?",
+                    (course_id,),
+                ) as cursor2:
+                    m_row = await cursor2.fetchone()
+                    if m_row and m_row[0] > 0:
+                        total_m = m_row[0]
+                        comp_m = m_row[1] or 0
+                        pct = (comp_m / total_m) * 100.0
+                        await db.execute("UPDATE courses SET progress_pct = ? WHERE id = ?", (pct, course_id))
+                        await db.commit()
+
+    # ── Quiz Attempts ─────────────────────────────────────────
+
+    async def save_quiz_attempt(
+        self,
+        module_id: int,
+        score: float,
+        total: float,
+        questions_json: str,
+        passed: int,
+        answers_json: str = "[]",
+        evaluations_json: str = "[]",
+    ):
         db = await self._get_conn()
         await db.execute(
-            "INSERT INTO quiz_attempts (module_id, score, total, questions_json, passed) VALUES (?, ?, ?, ?, ?)",
-            (module_id, score, total, questions_json, passed),
+            "INSERT INTO quiz_attempts (module_id, score, total, questions_json, answers_json, evaluations_json, passed) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (module_id, score, total, questions_json, answers_json, evaluations_json, passed),
         )
         await db.commit()
 
     async def get_quiz_stats(self) -> dict:
         db = await self._get_conn()
-        async with db.execute("SELECT COUNT(*), AVG(CAST(score AS FLOAT) / CAST(total AS FLOAT) * 100) FROM quiz_attempts") as cursor:
+        async with db.execute("SELECT COUNT(*), AVG(CASE WHEN total > 0 THEN score / total * 100 ELSE 0 END) FROM quiz_attempts") as cursor:
             row = await cursor.fetchone()
             return {"total_attempts": row[0] or 0, "avg_score": row[1] or 0.0}
+
+    async def get_recent_quiz_scores(self, limit: int = 10) -> list[dict]:
+        """Get recent quiz results with subject info for tutor context."""
+        db = await self._get_conn()
+        async with db.execute(
+            """SELECT c.subject, m.title, q.score, q.total, q.passed, q.timestamp
+               FROM quiz_attempts q
+               JOIN modules m ON q.module_id = m.id
+               JOIN courses c ON m.course_id = c.id
+               ORDER BY q.timestamp DESC LIMIT ?""",
+            (limit,),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [
+                {
+                    "subject": r[0],
+                    "module": r[1],
+                    "score": r[2],
+                    "total": r[3],
+                    "passed": r[4],
+                    "pct": round((r[2] / r[3]) * 100) if r[3] else 0,
+                    "date": r[5][:10] if r[5] else "",
+                }
+                for r in rows
+            ]
 
     async def get_quiz_history(self) -> list[dict]:
         db = await self._get_conn()
         async with db.execute("""
-            SELECT c.subject, q.score, q.total, q.timestamp 
+            SELECT c.subject, q.score, q.total, q.timestamp
             FROM quiz_attempts q
             JOIN modules m ON q.module_id = m.id
             JOIN courses c ON m.course_id = c.id
@@ -293,42 +392,291 @@ class DatabaseManager:
             rows = await cursor.fetchall()
             return [{"course": r[0], "score": f"{int((r[1] / r[2]) * 100)}%" if r[2] else "0%", "date": r[3][:10]} for r in rows]
 
-    async def get_parent_stats(self) -> dict:
-        db = await self._get_conn()
-        stats = {"total_quizzes": 0, "avg_score": "0%", "last_active": "Never"}
+    # ── Assessments (Mock Exams) ──────────────────────────────
 
-        async with db.execute("SELECT COUNT(*), AVG(CAST(score AS FLOAT) / CAST(total AS FLOAT) * 100) FROM quiz_attempts") as cursor:
-            row = await cursor.fetchone()
-            if row and row[0]:
-                stats["total_quizzes"] = row[0]
-                stats["avg_score"] = f"{int(row[1])}%" if row[1] else "0%"
-
-        async with db.execute("SELECT last_active_date FROM gamification WHERE id = 1") as cursor:
-            row = await cursor.fetchone()
-            if row and row[0]:
-                stats["last_active"] = row[0]
-
-        return stats
-
-    async def update_login_timestamp(self):
-        now = datetime.now().isoformat()
-        await self.set_setting("last_login", now)
-
-    async def check_daily_reward_eligibility(self) -> bool:
-        last_login_str = await self.get_setting("last_login")
-        if not last_login_str:
-            return True
-        last_login = datetime.fromisoformat(last_login_str)
-        delta = datetime.now() - last_login
-        return delta.total_seconds() > 86400
-
-    async def save_assessment(self, course_id: int, score: int, total: int, grade: str, duration: int):
+    async def save_assessment(
+        self,
+        course_id: int,
+        score: float,
+        total: float,
+        grade: str = "N/A",
+        duration_seconds: int = 0,
+        questions_json: str = "[]",
+        answers_json: str = "[]",
+        evaluations_json: str = "[]",
+    ):
         db = await self._get_conn()
         await db.execute(
-            "INSERT INTO assessments (course_id, score, total, grade, duration_seconds) VALUES (?, ?, ?, ?, ?)",
-            (course_id, score, total, grade, duration),
+            "INSERT INTO assessments (course_id, score, total, grade, duration_seconds, questions_json, answers_json, evaluations_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (course_id, score, total, grade, duration_seconds, questions_json, answers_json, evaluations_json),
         )
         await db.commit()
+
+    # ── Assignments ───────────────────────────────────────────
+
+    async def create_assignment(
+        self,
+        module_id: int,
+        course_id: int,
+        title: str,
+        description: str,
+        questions_json: str,
+        due_days: int = 3,
+    ) -> int:
+        db = await self._get_conn()
+        due_date = (datetime.now() + timedelta(days=due_days)).isoformat()
+        cursor = await db.execute(
+            """INSERT INTO assignments (module_id, course_id, title, description, questions_json, due_date)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (module_id, course_id, title, description, questions_json, due_date),
+        )
+        assignment_id = cursor.lastrowid
+        await db.commit()
+        return assignment_id
+
+    async def get_pending_assignments(self, course_id: int | None = None) -> list[dict]:
+        db = await self._get_conn()
+        if course_id:
+            query = """SELECT a.id, a.module_id, a.course_id, a.title, a.description, a.status, a.due_date, a.score, a.max_score, a.created_at, c.subject
+                       FROM assignments a JOIN courses c ON a.course_id = c.id
+                       WHERE a.course_id = ? AND a.status = 'pending' ORDER BY a.due_date"""
+            cursor = db.execute(query, (course_id,))
+        else:
+            query = """SELECT a.id, a.module_id, a.course_id, a.title, a.description, a.status, a.due_date, a.score, a.max_score, a.created_at, c.subject
+                       FROM assignments a JOIN courses c ON a.course_id = c.id
+                       WHERE a.status = 'pending' ORDER BY a.due_date"""
+            cursor = db.execute(query)
+        async with cursor as cur:
+            rows = await cur.fetchall()
+            return [
+                {
+                    "id": r[0],
+                    "module_id": r[1],
+                    "course_id": r[2],
+                    "title": r[3],
+                    "description": r[4],
+                    "status": r[5],
+                    "due_date": r[6],
+                    "score": r[7],
+                    "max_score": r[8],
+                    "created_at": r[9],
+                    "subject": r[10],
+                }
+                for r in rows
+            ]
+
+    async def get_all_assignments(self, course_id: int | None = None) -> list[dict]:
+        db = await self._get_conn()
+        if course_id:
+            query = """SELECT a.id, a.module_id, a.course_id, a.title, a.status, a.due_date, a.score, a.max_score, a.feedback, c.subject
+                       FROM assignments a JOIN courses c ON a.course_id = c.id
+                       WHERE a.course_id = ? ORDER BY a.created_at DESC"""
+            cursor = db.execute(query, (course_id,))
+        else:
+            query = """SELECT a.id, a.module_id, a.course_id, a.title, a.status, a.due_date, a.score, a.max_score, a.feedback, c.subject
+                       FROM assignments a JOIN courses c ON a.course_id = c.id
+                       ORDER BY a.created_at DESC"""
+            cursor = db.execute(query)
+        async with cursor as cur:
+            rows = await cur.fetchall()
+            return [
+                {
+                    "id": r[0],
+                    "module_id": r[1],
+                    "course_id": r[2],
+                    "title": r[3],
+                    "status": r[4],
+                    "due_date": r[5],
+                    "score": r[6],
+                    "max_score": r[7],
+                    "feedback": r[8],
+                    "subject": r[9],
+                }
+                for r in rows
+            ]
+
+    async def get_assignment(self, assignment_id: int) -> dict | None:
+        db = await self._get_conn()
+        async with db.execute(
+            """SELECT a.*, c.subject FROM assignments a
+               JOIN courses c ON a.course_id = c.id WHERE a.id = ?""",
+            (assignment_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            return {
+                "id": row[0],
+                "module_id": row[1],
+                "course_id": row[2],
+                "title": row[3],
+                "description": row[4],
+                "questions_json": row[5],
+                "status": row[6],
+                "due_date": row[7],
+                "submitted_at": row[8],
+                "graded_at": row[9],
+                "submission_json": row[10],
+                "evaluation_json": row[11],
+                "score": row[12],
+                "max_score": row[13],
+                "feedback": row[14],
+                "created_at": row[15],
+                "subject": row[16],
+            }
+
+    async def submit_assignment(self, assignment_id: int, submission_json: str):
+        db = await self._get_conn()
+        now = datetime.now().isoformat()
+        await db.execute(
+            "UPDATE assignments SET submission_json = ?, submitted_at = ?, status = 'submitted' WHERE id = ?",
+            (submission_json, now, assignment_id),
+        )
+        await db.commit()
+
+    async def grade_assignment(self, assignment_id: int, evaluation_json: str, score: float, feedback: str):
+        db = await self._get_conn()
+        now = datetime.now().isoformat()
+        await db.execute(
+            "UPDATE assignments SET evaluation_json = ?, score = ?, feedback = ?, graded_at = ?, status = 'graded' WHERE id = ?",
+            (evaluation_json, score, feedback, now, assignment_id),
+        )
+        await db.commit()
+
+    async def get_assignment_counts(self) -> dict:
+        """Get assignment counts by status for notification badge."""
+        db = await self._get_conn()
+        counts = {"pending": 0, "submitted": 0, "graded": 0, "overdue": 0}
+        async with db.execute("SELECT status, COUNT(*) FROM assignments GROUP BY status") as cursor:
+            async for row in cursor:
+                counts[row[0]] = row[1]
+        # Count overdue separately
+        now = datetime.now().isoformat()
+        async with db.execute("SELECT COUNT(*) FROM assignments WHERE status = 'pending' AND due_date < ?", (now,)) as cursor:
+            row = await cursor.fetchone()
+            counts["overdue"] = row[0] if row else 0
+        return counts
+
+    async def get_module_assignment(self, module_id: int) -> dict | None:
+        """Check if a module already has an assignment."""
+        db = await self._get_conn()
+        async with db.execute("SELECT id, status FROM assignments WHERE module_id = ? LIMIT 1", (module_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return {"id": row[0], "status": row[1]}
+        return None
+
+    async def can_complete_course(self, course_id: int) -> tuple[bool, int]:
+        """Check if all module assignments are graded. Returns (can_complete, pending_count)."""
+        db = await self._get_conn()
+        async with db.execute(
+            "SELECT COUNT(*) FROM assignments WHERE course_id = ? AND status != 'graded'",
+            (course_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            pending = row[0] if row else 0
+            return pending == 0, pending
+
+    # ── Chat History ──────────────────────────────────────────
+
+    async def save_chat(self, session_id: str, messages: list, context_snapshot: str = ""):
+        db = await self._get_conn()
+        msgs_json = json.dumps(messages)
+        # Check if session exists
+        async with db.execute("SELECT id FROM chat_history WHERE session_id = ?", (session_id,)) as cursor:
+            row = await cursor.fetchone()
+        if row:
+            await db.execute(
+                "UPDATE chat_history SET messages_json = ?, updated_at = CURRENT_TIMESTAMP WHERE session_id = ?",
+                (msgs_json, session_id),
+            )
+        else:
+            await db.execute(
+                "INSERT INTO chat_history (session_id, messages_json, context_snapshot) VALUES (?, ?, ?)",
+                (session_id, msgs_json, context_snapshot),
+            )
+        await db.commit()
+
+    async def get_chat(self, session_id: str) -> list:
+        db = await self._get_conn()
+        async with db.execute("SELECT messages_json FROM chat_history WHERE session_id = ?", (session_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row and row[0]:
+                return json.loads(row[0])
+        return []
+
+    async def get_latest_chat_session(self) -> str:
+        """Get or create a chat session ID."""
+        db = await self._get_conn()
+        async with db.execute("SELECT session_id FROM chat_history ORDER BY updated_at DESC LIMIT 1") as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return row[0]
+        return str(uuid.uuid4())
+
+    async def new_chat_session(self) -> str:
+        return str(uuid.uuid4())
+
+    async def clear_all_chats(self):
+        db = await self._get_conn()
+        await db.execute("DELETE FROM chat_history")
+        await db.commit()
+
+    # ── Student Snapshot (for Tutor Context) ──────────────────
+
+    async def get_student_snapshot(self) -> dict:
+        """Comprehensive student data for tutor AI context. Lightweight — no raw lesson content."""
+        profile = await self.get_profile() or {}
+        courses = await self.get_courses()
+        recent_quizzes = await self.get_recent_quiz_scores(10)
+        assignment_counts = await self.get_assignment_counts()
+        gamification = await self.get_gamification()
+        credits_used = await self.get_credits_used_today()
+
+        # Per-course module progress
+        course_details = []
+        for c in courses:
+            modules = await self.get_modules(c["id"])
+            total_m = len(modules)
+            done_m = sum(1 for m in modules if m["is_completed"])
+            course_details.append(
+                {
+                    "subject": c["subject"],
+                    "level": c["level"],
+                    "progress_pct": c["progress_pct"],
+                    "modules_done": done_m,
+                    "modules_total": total_m,
+                }
+            )
+
+        # Identify weak areas from failed quizzes
+        weak_areas = []
+        for q in recent_quizzes:
+            if not q["passed"]:
+                weak_areas.append(f"{q['subject']}: {q['module']}")
+
+        # Pending assignments
+        pending_assignments = await self.get_pending_assignments()
+
+        from core.constants import DAILY_CREDITS
+
+        return {
+            "profile": profile,
+            "courses": course_details,
+            "recent_quizzes": recent_quizzes[:5],
+            "weak_areas": weak_areas[:5],
+            "pending_assignments": pending_assignments,
+            "assignment_counts": assignment_counts,
+            "gamification": {
+                "xp": gamification["xp_total"],
+                "level": gamification["level"],
+                "streak": gamification["current_streak"],
+                "best_streak": gamification["best_streak"],
+            },
+            "credits_remaining": max(0, DAILY_CREDITS - credits_used),
+        }
+
+    # ── Credits ───────────────────────────────────────────────
 
     async def get_credits_used_today(self) -> int:
         db = await self._get_conn()
@@ -345,6 +693,8 @@ class DatabaseManager:
             (today, credits, action),
         )
         await db.commit()
+
+    # ── Gamification ──────────────────────────────────────────
 
     async def get_gamification(self) -> dict:
         db = await self._get_conn()
@@ -381,28 +731,40 @@ class DatabaseManager:
         )
         await db.commit()
 
-    async def save_chat(self, module_id: int, messages: list):
-        db = await self._get_conn()
-        msgs_json = json.dumps(messages)
-        await db.execute(
-            """INSERT OR REPLACE INTO chat_history (module_id, messages_json, updated_at)
-               VALUES (?, ?, CURRENT_TIMESTAMP)""",
-            (module_id, msgs_json),
-        )
-        await db.commit()
+    # ── Parent / Stats ────────────────────────────────────────
 
-    async def get_chat(self, module_id: int) -> list:
+    async def get_parent_stats(self) -> dict:
         db = await self._get_conn()
-        async with db.execute("SELECT messages_json FROM chat_history WHERE module_id = ?", (module_id,)) as cursor:
+        stats = {"total_quizzes": 0, "avg_score": "0%", "last_active": "Never"}
+
+        async with db.execute("SELECT COUNT(*), AVG(CASE WHEN total > 0 THEN score / total * 100 ELSE 0 END) FROM quiz_attempts") as cursor:
             row = await cursor.fetchone()
             if row and row[0]:
-                return json.loads(row[0])
-        return []
+                stats["total_quizzes"] = row[0]
+                stats["avg_score"] = f"{int(row[1])}%" if row[1] else "0%"
 
-    async def close(self):
-        if self._conn:
-            await self._conn.close()
-            self._conn = None
+        async with db.execute("SELECT last_active_date FROM gamification WHERE id = 1") as cursor:
+            row = await cursor.fetchone()
+            if row and row[0]:
+                stats["last_active"] = row[0]
+
+        return stats
+
+    # ── Misc ──────────────────────────────────────────────────
+
+    async def update_login_timestamp(self):
+        now = datetime.now().isoformat()
+        await self.set_setting("last_login", now)
+
+    async def check_daily_reward_eligibility(self) -> bool:
+        last_login_str = await self.get_setting("last_login")
+        if not last_login_str:
+            return True
+        last_login = datetime.fromisoformat(last_login_str)
+        delta = datetime.now() - last_login
+        return delta.total_seconds() > 86400
+
+    # ── Timetable ─────────────────────────────────────────────
 
     async def get_timetable(self) -> list[dict]:
         db = await self._get_conn()
@@ -423,6 +785,11 @@ class DatabaseManager:
         db = await self._get_conn()
         await db.execute("DELETE FROM timetable WHERE id = ?", (entry_id,))
         await db.commit()
+
+    async def close(self):
+        if self._conn:
+            await self._conn.close()
+            self._conn = None
 
 
 db_manager = DatabaseManager()

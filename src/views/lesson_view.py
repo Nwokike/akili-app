@@ -7,11 +7,13 @@ from core.state import state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager
 from services.ai_service import ai_service
+from services.assignment_service import generate_assignment
 from services.credit_service import credit_service
 from services.gamification import gamification_service
 
 
 async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
+    ad_service = page.data.get("ad_service")
     module = state.current_module
     if not module:
         return ft.View(route="/lesson", controls=[ft.Text("No module selected")])
@@ -38,6 +40,20 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
             _render_lesson(cached)
             return
 
+        from components.offline_retry import OfflineRetryWidget
+
+        if not state.is_online:
+            body_container.content = OfflineRetryWidget(
+                page,
+                on_retry=_generate_lesson,
+                message="Akili needs an active internet connection to generate this lesson.",
+            )
+            page.update()
+            return
+
+        body_container.content = normal_layout
+        page.update()
+
         ok = await credit_service.spend("lesson_gen")
         if not ok:
             error_text.value = "⚠️ Not enough credits."
@@ -63,7 +79,10 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
                 f"- Use examples and analogies\n"
                 f"- Include practice problems where relevant\n"
                 f"- Use markdown formatting\n"
-                f"- Aim for 800-1200 words"
+                f"- Aim for 800-1200 words\n"
+                f"- END the lesson with a '📓 Notebook Checkpoint' section that lists 5-8 key points "
+                f"the student should write down in their notebook. Frame it as: 'Write these in your "
+                f"notebook — you will need them for your quiz and assignment.'"
             )
 
             response = await ai_service.chat(
@@ -76,6 +95,23 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
                 await db_manager.save_lesson(module["id"], content)
                 _render_lesson(content)
                 await gamification_service.award_xp("lesson_complete")
+
+                # Auto-generate assignment for this module
+                try:
+                    a_id = await generate_assignment(
+                        module=module,
+                        course=course,
+                        lesson_content=content,
+                    )
+                    if a_id:
+                        page.snack_bar = ft.SnackBar(
+                            ft.Text("📋 New assignment created!"),
+                            bgcolor=AppColors.ACCENT,
+                        )
+                        page.snack_bar.open = True
+                        page.update()
+                except Exception as ex:
+                    print(f"[Lesson] Assignment generation failed: {ex}")
             else:
                 error_text.value = "Failed to generate lesson"
                 error_text.visible = True
@@ -98,13 +134,46 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
                 expand=True,
             )
         )
+        if ad_service:
+            lesson_content.controls.append(ad_service.get_banner_ad())
         page.update()
 
     async def _mark_complete(e):
+        # Warn if assignment is pending
+        existing = await db_manager.get_module_assignment(module["id"])
+        if existing and existing["status"] == "pending":
+            page.snack_bar = ft.SnackBar(
+                ft.Text("⚠️ You have a pending assignment for this module!"),
+                bgcolor=AppColors.ACCENT,
+            )
+            page.snack_bar.open = True
+            page.update()
+
         await db_manager.complete_module(module["id"])
         page.snack_bar = ft.SnackBar(ft.Text("✅ Module completed!"), bgcolor=AppColors.SUCCESS)
         page.snack_bar.open = True
         await navigate("/modules")
+
+    # ── Notebook tip banner ───────────────────────────────────────
+    notebook_tip = ft.Container(
+        content=ft.Row(
+            [
+                ft.Icon(ft.Icons.EDIT_NOTE_ROUNDED, size=20, color=ft.Colors.AMBER_800),
+                ft.Text(
+                    "📓 Keep your notebook ready — take notes as you read. You'll need them for quizzes & assignments!",
+                    size=12,
+                    color=ft.Colors.AMBER_800,
+                    expand=True,
+                    max_lines=2,
+                ),
+            ],
+            spacing=8,
+        ),
+        padding=ft.Padding(16, 10, 16, 10),
+        border_radius=AppStyles.RADIUS_SMALL,
+        bgcolor=ft.Colors.with_opacity(0.08, ft.Colors.AMBER),
+        margin=ft.Margin(20, 0, 20, 0),
+    )
 
     # ── Header (Minimalist) ───────────────────────────────────────
     header = ft.Container(
@@ -161,6 +230,22 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
         bgcolor=ft.Colors.SURFACE,
     )
 
+    normal_layout = ft.Column(
+        [
+            loading_indicator,
+            error_text,
+            lesson_content,
+        ],
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        scroll=ft.ScrollMode.AUTO,
+    )
+
+    body_container = ft.Container(
+        content=normal_layout,
+        padding=20,
+        expand=True,
+    )
+
     page.run_task(_generate_lesson)
 
     return ft.View(
@@ -171,19 +256,8 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
                     content=ft.Column(
                         [
                             header,
-                            ft.Container(
-                                content=ft.Column(
-                                    [
-                                        loading_indicator,
-                                        error_text,
-                                        lesson_content,
-                                    ],
-                                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                                    scroll=ft.ScrollMode.AUTO,
-                                ),
-                                padding=20,
-                                expand=True,
-                            ),
+                            notebook_tip,
+                            body_container,
                             actions,
                         ],
                         spacing=0,

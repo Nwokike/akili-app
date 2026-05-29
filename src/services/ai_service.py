@@ -9,9 +9,18 @@ import re
 
 import httpx
 
-from core.constants import API_GATEWAY, AITaskType, GATEWAY_SECRET, USER_AGENT
+from core.constants import API_GATEWAY, GATEWAY_SECRET, USER_AGENT, AITaskType
 from core.state import state
-from services.tools import AKILI_TOOLS, get_current_time, read_page, search_web
+from services.tools import (
+    AKILI_TOOLS,
+    get_current_time,
+    read_page,
+    search_books,
+    search_images,
+    search_news,
+    search_videos,
+    search_web,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +144,7 @@ class AIService:
                 await asyncio.sleep(delay)
 
     async def analyze_image(self, media_data: bytes, mime_type: str) -> str:
+        """Meticulous image analysis — captures every detail for accurate evaluation."""
         b64_image = base64.b64encode(media_data).decode("utf-8")
         payload = {
             "messages": [
@@ -143,15 +153,30 @@ class AIService:
                     "content": [
                         {
                             "type": "text",
-                            "text": "You are Akili Eye. Transcribe every word, math formula, and describe every diagram in this image in extreme detail.",
+                            "text": (
+                                "You are Akili Eye — a meticulous academic document reader.\n\n"
+                                "TRANSCRIBE this image with EXTREME precision. Capture:\n"
+                                "1. EVERY word exactly as written — preserve spelling (including errors)\n"
+                                "2. ALL punctuation marks exactly as they appear (commas, periods, apostrophes)\n"
+                                "3. The EXACT ordering of content (paragraphs, numbered lists, bullet points)\n"
+                                "4. Letter/essay FORMAT if present (date, address, salutation, body, closing, signature)\n"
+                                "5. ALL mathematical formulas, equations, chemical symbols, diagrams\n"
+                                "6. Handwriting QUALITY observations (legibility, neatness, crossed-out words)\n"
+                                "7. Any drawings, diagrams, or tables — describe their structure and labels\n"
+                                "8. Margin notes, corrections, or annotations\n\n"
+                                "OUTPUT FORMAT:\n"
+                                "[TRANSCRIPTION]\n(exact text as written)\n\n"
+                                "[OBSERVATIONS]\n(handwriting quality, formatting style, any notable issues)\n\n"
+                                "Be forensically precise. Every detail matters for grading."
+                            ),
                         },
                         {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64_image}"}},
                     ],
                 }
             ],
             "task_type": AITaskType.VISION,
-            "temperature": 0.2,
-            "max_tokens": 2048,
+            "temperature": 0.1,
+            "max_tokens": 3000,
         }
         resp = await self._post_with_backoff(payload)
         if "error" in resp:
@@ -184,11 +209,7 @@ class AIService:
             # Whisper returns {"text": "..."}, chat completions return choices[]
             transcript = data_resp.get("text", "")
             if not transcript:
-                transcript = (
-                    data_resp.get("choices", [{}])[0]
-                    .get("message", {})
-                    .get("content", "")
-                )
+                transcript = data_resp.get("choices", [{}])[0].get("message", {}).get("content", "")
 
             if transcript:
                 logger.info("Transcribed %d bytes audio → '%s'", len(media_data), transcript[:80])
@@ -321,6 +342,34 @@ class AIService:
                     res = await search_web(query)
                     result_content = str(res)
                     print(f"[AI Tool Result] search_web: {len(res)} items. Snippet: {result_content[:150]}...", flush=True)
+
+                elif func_name == "search_images":
+                    query = args.get("query", "")
+                    _status(f"🖼️ Finding Images: {query}...")
+                    res = await search_images(query)
+                    result_content = str(res)
+                    print(f"[AI Tool Result] search_images: {len(res)} items.", flush=True)
+
+                elif func_name == "search_news":
+                    query = args.get("query", "")
+                    _status(f"📰 Finding News: {query}...")
+                    res = await search_news(query)
+                    result_content = str(res)
+                    print(f"[AI Tool Result] search_news: {len(res)} items.", flush=True)
+
+                elif func_name == "search_videos":
+                    query = args.get("query", "")
+                    _status(f"🎬 Finding Videos: {query}...")
+                    res = await search_videos(query)
+                    result_content = str(res)
+                    print(f"[AI Tool Result] search_videos: {len(res)} items.", flush=True)
+
+                elif func_name == "search_books":
+                    query = args.get("query", "")
+                    _status(f"📚 Finding Books: {query}...")
+                    res = await search_books(query)
+                    result_content = str(res)
+                    print(f"[AI Tool Result] search_books: {len(res)} items.", flush=True)
 
                 elif func_name == "read_page":
                     url = args.get("url", "")
@@ -461,6 +510,30 @@ class AIService:
                     res = await search_web(query)
                     result_content = str(res)
                     print(f"[AI Tool Result] search_web: {len(res)} items. Snippet: {result_content[:150]}...", flush=True)
+                elif func_name == "search_images":
+                    query = args.get("query", "")
+                    _status(f"🖼️ Finding Images: {query}...")
+                    res = await search_images(query)
+                    result_content = str(res)
+                    print(f"[AI Tool Result] search_images: {len(res)} items.", flush=True)
+                elif func_name == "search_news":
+                    query = args.get("query", "")
+                    _status(f"📰 Finding News: {query}...")
+                    res = await search_news(query)
+                    result_content = str(res)
+                    print(f"[AI Tool Result] search_news: {len(res)} items.", flush=True)
+                elif func_name == "search_videos":
+                    query = args.get("query", "")
+                    _status(f"🎬 Finding Videos: {query}...")
+                    res = await search_videos(query)
+                    result_content = str(res)
+                    print(f"[AI Tool Result] search_videos: {len(res)} items.", flush=True)
+                elif func_name == "search_books":
+                    query = args.get("query", "")
+                    _status(f"📚 Finding Books: {query}...")
+                    res = await search_books(query)
+                    result_content = str(res)
+                    print(f"[AI Tool Result] search_books: {len(res)} items.", flush=True)
                 elif func_name == "read_page":
                     read_count += 1
                     url = args.get("url", "")
@@ -484,6 +557,80 @@ class AIService:
             "content": _strip_thinking(final_content),
             "_model": model_used,
         }
+
+    async def chat_with_healing(
+        self,
+        messages: list[dict],
+        validation_func,
+        system_prompt: str = None,
+        task_type: str = AITaskType.TEXT,
+        media: dict = None,
+        use_tools: bool = True,
+        on_status=None,
+        max_healing_attempts: int = 2,
+        **kwargs,
+    ) -> dict:
+        """Call AI and automatically self-heal if the validation_func returns None."""
+        current_messages = list(messages)
+
+        # First attempt
+        resp = await self.chat(messages=current_messages, system_prompt=system_prompt, task_type=task_type, media=media, use_tools=use_tools, on_status=on_status, **kwargs)
+        if resp.get("_error"):
+            return resp
+
+        raw_content = resp.get("content", "")
+        try:
+            parsed = validation_func(raw_content)
+        except Exception as e:
+            logger.warning("Validation exception: %s", e)
+            parsed = None
+
+        if parsed is not None:
+            resp["parsed"] = parsed
+            return resp
+
+        # Self-healing loop
+        for attempt in range(max_healing_attempts):
+            if on_status:
+                on_status(f"⚠️ Format invalid. Attempting AI self-healing ({attempt + 1}/{max_healing_attempts})...")
+            print(f"[AI Self-Healing] Attempt {attempt + 1}/{max_healing_attempts} for prompt: {messages[-1]['content'][:80]}...", flush=True)
+
+            # Construct a clear, precise correction turn
+            healing_messages = current_messages + [
+                {"role": "assistant", "content": raw_content},
+                {
+                    "role": "user",
+                    "content": (
+                        "CRITICAL: The previous output could not be parsed successfully.\n"
+                        "Please regenerate it and return ONLY the exact, valid output structure requested.\n"
+                        "Do not include any thinking tags (<think>), markdown fences, preamble, introduction, "
+                        "or extra text. Ensure all quotes, brackets, and commas are perfectly formatted."
+                    ),
+                },
+            ]
+
+            # Call AI again - disable tools to keep it focused on formatting
+            resp = await self.chat(messages=healing_messages, system_prompt=system_prompt, task_type=task_type, media=None, use_tools=False, on_status=on_status, **kwargs)
+            if resp.get("_error"):
+                return resp
+
+            raw_content = resp.get("content", "")
+            try:
+                parsed = validation_func(raw_content)
+            except Exception as e:
+                logger.warning("Validation exception: %s", e)
+                parsed = None
+
+            if parsed is not None:
+                resp["parsed"] = parsed
+                if on_status:
+                    on_status("✅ Self-healing succeeded!")
+                return resp
+
+        # If we reach here, self-healing exhausted
+        if on_status:
+            on_status("❌ Self-healing exhausted. Displaying fallback.")
+        return resp
 
     async def close(self):
         await self._client.aclose()

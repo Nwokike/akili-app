@@ -5,6 +5,7 @@ from core.state import state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager
 from services.gamification import gamification_service
+from services.share_service import ShareType, show_share_sheet
 
 
 async def build_progress_view(page: ft.Page, navigate) -> ft.View:
@@ -117,6 +118,20 @@ async def build_progress_view(page: ft.Page, navigate) -> ft.View:
     badge_row = ft.Row(scroll=ft.ScrollMode.AUTO, spacing=12)
     for b in badges:
         opacity = 1.0 if b["earned"] else 0.2
+
+        def _share_badge(e, badge=b):
+            if badge["earned"]:
+                show_share_sheet(
+                    page,
+                    ShareType.BADGE,
+                    {
+                        "badge_name": badge["name"],
+                        "badge_icon": badge["icon"],
+                        "badge_desc": badge["desc"],
+                        "name": state.user_name,
+                    },
+                )
+
         badge_row.controls.append(
             ft.Container(
                 content=ft.Column(
@@ -132,8 +147,43 @@ async def build_progress_view(page: ft.Page, navigate) -> ft.View:
                 border_radius=AppStyles.RADIUS_SMALL,
                 bgcolor=ft.Colors.with_opacity(0.05 * opacity, ft.Colors.ON_SURFACE),
                 opacity=opacity,
+                on_click=_share_badge if b["earned"] else None,
+                tooltip="Tap to share!" if b["earned"] else b["desc"],
             )
         )
+
+    # Share buttons row
+    def _share_streak(e):
+        show_share_sheet(
+            page,
+            ShareType.STREAK,
+            {
+                "streak": state.current_streak,
+                "name": state.user_name,
+            },
+        )
+
+    def _share_level(e):
+        level_info = next((lvl for lvl in LEVELS if lvl["name"] == state.level), {})
+        show_share_sheet(
+            page,
+            ShareType.LEVEL_UP,
+            {
+                "level": state.level,
+                "icon": level_info.get("icon", "🎓"),
+                "xp": state.xp_total,
+                "name": state.user_name,
+            },
+        )
+
+    share_row = ft.Row(
+        [
+            ft.TextButton("📤 Share Streak", icon=ft.Icons.SHARE_ROUNDED, on_click=_share_streak),
+            ft.TextButton("📤 Share Level", icon=ft.Icons.SHARE_ROUNDED, on_click=_share_level),
+        ],
+        alignment=ft.MainAxisAlignment.CENTER,
+        spacing=8,
+    )
 
     return ft.View(
         route="/progress",
@@ -152,6 +202,7 @@ async def build_progress_view(page: ft.Page, navigate) -> ft.View:
                                         quiz_card,
                                         ft.Text("Achievements", size=18, weight=ft.FontWeight.BOLD),
                                         badge_row,
+                                        share_row,
                                         ft.Container(height=20),
                                         ft.OutlinedButton(
                                             "View Detailed History",

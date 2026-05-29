@@ -11,15 +11,15 @@ import wave
 
 import flet as ft
 
-from core.constants import MAX_VOICE_DURATION_SEC, MAX_AUDIO_SIZE_BYTES
+from core.constants import MAX_AUDIO_SIZE_BYTES, MAX_VOICE_DURATION_SEC
 
 logger = logging.getLogger(__name__)
 
 try:
     from flet_audio_recorder import (
+        AudioEncoder,
         AudioRecorder,
         AudioRecorderConfiguration,
-        AudioEncoder,
         AudioRecorderStreamEvent,
     )
 
@@ -60,9 +60,7 @@ class AudioService:
     async def start_recording(self, on_auto_stop=None) -> bool:
         """Start PCM16BITS streaming recording. Returns True if started."""
         if not self._recorder:
-            self._page.snack_bar = ft.SnackBar(
-                content=ft.Text("Audio recording not available on this platform")
-            )
+            self._page.snack_bar = ft.SnackBar(content=ft.Text("Audio recording not available on this platform"))
             self._page.snack_bar.open = True
             self._page.update()
             return False
@@ -81,9 +79,7 @@ class AudioService:
             logger.info("Audio recording started (PCM16BITS streaming, ok=%s)", ok)
 
             if self._recording:
-                self._auto_stop_task = asyncio.create_task(
-                    self._auto_stop_timer(on_auto_stop)
-                )
+                self._auto_stop_task = asyncio.create_task(self._auto_stop_timer(on_auto_stop))
 
             return self._recording
         except Exception as e:
@@ -106,9 +102,7 @@ class AudioService:
 
                 # Notify the UI that recording was auto-stopped
                 self._page.snack_bar = ft.SnackBar(
-                    content=ft.Text(
-                        f"Voice note auto-stopped ({MAX_VOICE_DURATION_SEC}s limit)"
-                    ),
+                    content=ft.Text(f"Voice note auto-stopped ({MAX_VOICE_DURATION_SEC}s limit)"),
                     duration=3000,
                 )
                 self._page.snack_bar.open = True

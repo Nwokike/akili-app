@@ -5,6 +5,21 @@ from core.state import state
 from database.manager import db_manager
 
 
+def update_credit_displays():
+    active_controls = []
+    for control in getattr(state, "credit_text_controls", []):
+        try:
+            if "150" in getattr(control, "value", "") or "Today" in getattr(control, "value", ""):
+                control.value = f"{state.credits_remaining} / 150 Today"
+            else:
+                control.value = f"{state.credits_remaining}"
+            control.update()
+            active_controls.append(control)
+        except Exception:
+            pass
+    state.credit_text_controls = active_controls
+
+
 class CreditService:
     async def refresh_credits(self):
         """Check if day changed and reset credits. Load from DB."""
@@ -14,6 +29,7 @@ class CreditService:
             state.credits_date = today
             credits_used = await db_manager.get_credits_used_today()
             state.credits_remaining = max(0, DAILY_CREDITS - credits_used)
+            update_credit_displays()
         return state.credits_remaining
 
     async def can_afford(self, action: str) -> bool:
@@ -34,11 +50,20 @@ class CreditService:
 
         await db_manager.log_credit_usage(cost, action)
         state.credits_remaining -= cost
+        update_credit_displays()
         return True
 
     def get_cost(self, action: str) -> int:
         """Get credit cost for an action."""
         return CREDIT_COSTS.get(action, 0)
+
+    async def add_credits(self, amount: int) -> int:
+        """Add credits dynamically (e.g. via rewarded ads)."""
+        await self.refresh_credits()
+        await db_manager.log_credit_usage(-amount, "rewarded_ad")
+        state.credits_remaining += amount
+        update_credit_displays()
+        return state.credits_remaining
 
 
 credit_service = CreditService()

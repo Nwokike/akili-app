@@ -12,6 +12,7 @@ BADGE_DEFINITIONS = {
     "ten_lessons": {"name": "Bookworm", "icon": "📖", "desc": "Completed 10 lessons"},
     "first_mock": {"name": "Exam Ready", "icon": "📝", "desc": "Completed first mock exam"},
     "honor_roll": {"name": "Honor Roll", "icon": "🏆", "desc": "Average score above 80%"},
+    "diligent_scholar": {"name": "Diligent Scholar", "icon": "✍️", "desc": "Completed 10 assignments on time"},
 }
 
 
@@ -24,27 +25,63 @@ class GamificationService:
         state.current_streak = data["current_streak"]
         state.best_streak = data["best_streak"]
 
-    async def award_xp(self, action: str) -> int:
-        """Award XP for an action. Returns XP gained."""
+    async def award_xp(self, action: str) -> dict:
+        """Award XP for an action. Returns dict with xp_gained + optional share events."""
         xp_gain = XP_REWARDS.get(action, 0)
         if xp_gain == 0:
-            return 0
+            return {"xp_gained": 0, "events": []}
 
+        old_level = state.level
         state.xp_total += xp_gain
         new_level = self._calculate_level(state.xp_total)
         state.level = new_level
 
         await self._save()
-        return xp_gain
 
-    async def update_streak(self):
-        """Update daily streak. Call once per session."""
+        events = []
+
+        # Level up event — shareable
+        if new_level != old_level:
+            level_info = next((lvl for lvl in LEVELS if lvl["name"] == new_level), {})
+            events.append(
+                {
+                    "type": "level_up",
+                    "data": {
+                        "level": new_level,
+                        "icon": level_info.get("icon", "🎓"),
+                        "xp": state.xp_total,
+                        "name": state.user_name,
+                    },
+                }
+            )
+
+        # XP milestones — shareable at 100, 500, 1000, 2500, 5000, 10000
+        milestones = [100, 500, 1000, 2500, 5000, 10000]
+        old_xp = state.xp_total - xp_gain
+        for m in milestones:
+            if old_xp < m <= state.xp_total:
+                events.append(
+                    {
+                        "type": "xp_milestone",
+                        "data": {
+                            "xp": state.xp_total,
+                            "level": state.level,
+                            "name": state.user_name,
+                        },
+                    }
+                )
+                break
+
+        return {"xp_gained": xp_gain, "events": events}
+
+    async def update_streak(self) -> dict:
+        """Update daily streak. Call once per session. Returns share events."""
         data = await db_manager.get_gamification()
         last_date = data.get("last_active_date")
         today = date.today().isoformat()
 
         if last_date == today:
-            return  # Already counted today
+            return {"events": []}
 
         yesterday = (date.today() - timedelta(days=1)).isoformat()
         if last_date == yesterday:
@@ -61,13 +98,29 @@ class GamificationService:
 
         await self._save()
 
-    async def check_badge(self, badge_id: str) -> bool:
-        """Award a badge if not already earned. Returns True if newly awarded."""
+        events = []
+        # Streak milestones — shareable at 3, 7, 14, 30, 60, 100
+        streak_milestones = [3, 7, 14, 30, 60, 100]
+        if state.current_streak in streak_milestones:
+            events.append(
+                {
+                    "type": "streak",
+                    "data": {
+                        "streak": state.current_streak,
+                        "name": state.user_name,
+                    },
+                }
+            )
+
+        return {"events": events}
+
+    async def check_badge(self, badge_id: str) -> dict | None:
+        """Award a badge if not already earned. Returns badge share data if newly awarded."""
         data = await db_manager.get_gamification()
         badges = json.loads(data.get("badges_json", "[]"))
 
         if badge_id in badges:
-            return False  # Already have it
+            return None  # Already have it
 
         badges.append(badge_id)
         await db_manager.update_gamification(
@@ -77,7 +130,18 @@ class GamificationService:
             state.best_streak,
             badges,
         )
-        return True
+
+        # Return share-ready badge data
+        badge_def = BADGE_DEFINITIONS.get(badge_id, {})
+        return {
+            "type": "badge",
+            "data": {
+                "badge_name": badge_def.get("name", badge_id),
+                "badge_icon": badge_def.get("icon", "🏅"),
+                "badge_desc": badge_def.get("desc", ""),
+                "name": state.user_name,
+            },
+        }
 
     async def get_badges(self) -> list[dict]:
         """Get all earned badges with metadata."""

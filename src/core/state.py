@@ -32,9 +32,17 @@ class AppState:
     # Navigation
     current_course: dict | None = None
     current_module: dict | None = None
+    current_assignment_id: int | None = None
 
     # Theme
     theme_mode: ft.ThemeMode = ft.ThemeMode.LIGHT
+
+    # AI Search Settings
+    search_region: str = "wt-wt"
+    safesearch_level: str = "on"
+
+    # Connectivity
+    is_online: bool = True
 
     def __init__(self):
         self.current_course = None
@@ -65,3 +73,16 @@ class AppState:
 
 
 state = AppState()
+
+
+async def check_internet_connection() -> bool:
+    """Active, lightweight internet reachability verification to Akili API Gateway."""
+    import httpx
+
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            # Reaching gateway URL with short timeout is a true test of DNS + network access
+            await client.get("https://api.kiri.ng", follow_redirects=True)
+            return True
+    except Exception:
+        return False
