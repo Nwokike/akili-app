@@ -1,7 +1,7 @@
 [project]
 name = "akili"
 version = "1.0.0"
-description = "AI-powered learning platform for students"
+description = "After-School Learning App for Everyone"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
