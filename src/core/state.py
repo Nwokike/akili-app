@@ -6,7 +6,6 @@ class AppState:
     # User profile
     user_name: str = ""
     education_level: str = ""
-    education_system: str = "International (Grade 1-12)"
     country: str = "Global"
     avatar_index: int = 0
     is_onboarded: bool = False

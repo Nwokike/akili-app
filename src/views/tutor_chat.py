@@ -123,7 +123,7 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         lines = [
             "\n[STUDENT PROFILE]",
             f"Name: {profile.get('name', 'Student')} | Level: {profile.get('education_level', 'Unknown')}",
-            f"Country: {profile.get('country', 'Unknown')} | System: {profile.get('education_system', 'Unknown')}",
+            f"Country: {profile.get('country', 'Unknown')}",
         ]
 
         courses = snapshot.get("courses", [])

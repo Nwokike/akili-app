@@ -3,7 +3,7 @@ import contextlib
 import flet as ft
 
 from components.credit_dialog import show_credits_dialog
-from core.constants import COUNTRIES, SYSTEM_TEMPLATES
+from core.constants import COUNTRIES
 from core.state import state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager
@@ -31,40 +31,15 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
         border_color=ft.Colors.with_opacity(0.1, AppColors.PRIMARY),
     )
 
-    education_system_dropdown = ft.Dropdown(
-        value=state.education_system or "International (Grade 1-12)",
-        label="Education System",
-        border_radius=AppStyles.RADIUS_SMALL,
-        bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.ON_SURFACE),
-        border_color=ft.Colors.with_opacity(0.1, AppColors.PRIMARY),
-        options=[ft.DropdownOption(key, text=details["name"]) for key, details in SYSTEM_TEMPLATES.items()],
-    )
-
-    # Class levels dropdown (dynamically populated based on selected system)
-    class_dropdown = ft.Dropdown(
+    # Class / Level free-form field (removed rigid education system)
+    class_field = ft.TextField(
         value=state.education_level,
-        label="Class / Grade",
+        label="Class / Grade / Level",
         border_radius=AppStyles.RADIUS_SMALL,
+        filled=True,
         bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.ON_SURFACE),
         border_color=ft.Colors.with_opacity(0.1, AppColors.PRIMARY),
-        options=[],
     )
-
-    def update_classes(system_key):
-        template = SYSTEM_TEMPLATES.get(system_key)
-        if template:
-            class_dropdown.options = [ft.DropdownOption(lvl, text=lvl) for lvl in template["levels"]]
-            # Select first if current value not in list
-            if state.education_level not in template["levels"]:
-                class_dropdown.value = template["levels"][0]
-            else:
-                class_dropdown.value = state.education_level
-        with contextlib.suppress(Exception):
-            class_dropdown.update()
-
-    education_system_dropdown.on_change = lambda e: update_classes(e.control.value)
-    # Initial population
-    update_classes(education_system_dropdown.value)
 
     country_dropdown = ft.Dropdown(
         value=state.country or "Global",
@@ -140,15 +115,14 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
     # --- Save Handler ---
     async def _save_all(e):
         name = name_field.value.strip()
-        system = education_system_dropdown.value
-        level = class_dropdown.value
+        level = class_field.value.strip()
         country = country_dropdown.value
         region = region_dropdown.value
         safesearch = safesearch_dropdown.value
 
         if not name or not level:
             page.snack_bar = ft.SnackBar(
-                ft.Text("Please fill out name and education level"),
+                ft.Text("Please fill out name and class level"),
                 bgcolor=AppColors.ERROR,
             )
             page.snack_bar.open = True
@@ -157,7 +131,6 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
 
         # Update local states
         state.user_name = name
-        state.education_system = system
         state.education_level = level
         state.country = country
         state.avatar_index = selected_avatar_idx
@@ -171,7 +144,7 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
             education_levels=state.education_levels,
             avatar_index=selected_avatar_idx,
             country=country,
-            education_system=system,
+            education_system="",
         )
 
         # Persist AI search settings to db
@@ -323,8 +296,7 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
             avatar_row,
             ft.Container(height=4),
             name_field,
-            education_system_dropdown,
-            class_dropdown,
+            class_field,
             country_dropdown,
         ],
         spacing=12,

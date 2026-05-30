@@ -49,7 +49,6 @@ def build_onboarding_view(page: ft.Page, navigate) -> ft.View:
         state.user_name = name
         state.country = country
         state.education_level = level
-        state.education_system = ""
         state.education_levels = []
         state.is_onboarded = True
 

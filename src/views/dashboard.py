@@ -77,14 +77,32 @@ async def build_dashboard_view(page: ft.Page, navigate) -> ft.View:
         padding=ft.Padding(16, 12, 16, 12),
     )
 
-    # ── Welcome Section (Minimalist) ────────────────────────────────
+    AVATARS = ["🦊", "🦁", "🐼", "🐨", "🐯", "🐸", "🐹", "🦄"]
+    user_avatar = AVATARS[state.avatar_index] if 0 <= state.avatar_index < len(AVATARS) else "🦊"
+
+    # ── Welcome Section (Premium with Profile Avatar) ─────────────────
     welcome_section = ft.Container(
-        content=ft.Column(
+        content=ft.Row(
             [
-                ft.Text("Hello,", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
-                ft.Text(state.user_name or "Student", size=32, weight=ft.FontWeight.BOLD),
+                ft.Column(
+                    [
+                        ft.Text("Hello,", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
+                        ft.Text(state.user_name or "Student", size=32, weight=ft.FontWeight.BOLD),
+                    ],
+                    spacing=2,
+                    expand=True,
+                ),
+                ft.Container(
+                    content=ft.Text(user_avatar, size=32),
+                    width=60,
+                    height=60,
+                    bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+                    border_radius=30,
+                    alignment=ft.Alignment.CENTER,
+                    border=ft.Border.all(2, AppColors.PRIMARY),
+                ),
             ],
-            spacing=2,
+            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
         ),
         padding=ft.Padding(24, 10, 24, 20),
     )
