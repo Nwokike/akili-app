@@ -136,8 +136,11 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
             page.update()
             return
 
-        generate_btn.disabled = True
-        loading_ring.visible = True
+        # Hide inputs and show the premium progress card
+        suggestions_col.visible = False
+        custom_subject_field.visible = False
+        generate_btn.visible = False
+        progress_card.visible = True
         status_text.color = ft.Colors.ON_SURFACE_VARIANT
         page.update()
 
@@ -150,9 +153,28 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
             if not ok:
                 status_text.value = "Not enough credits"
                 status_text.color = AppColors.ERROR
+                # Restore inputs
+                suggestions_col.visible = True
+                if selected_subject["value"] == "Other":
+                    custom_subject_field.visible = True
+                generate_btn.visible = True
+                progress_card.visible = False
+                page.update()
                 return
 
-            prompt = f"Generate curriculum for {subject} at {state.education_level} level for {state.country}. Tailor it to regional standards."
+            prompt = (
+                f"You are designing an official, high-quality curriculum for {subject} at {state.education_level} level "
+                f"specifically tailored to standard curricula in {state.country}.\n\n"
+                f"CRITICAL REQUIREMENTS:\n"
+                f"1. Search the web specifically for the official curriculum documents and syllabus outlines "
+                f"from reputable national or regional educational boards in {state.country} "
+                f"(e.g. WAEC or NECO for Nigeria, GCSE/A-Levels for UK, state standards/AP for US, etc.) for '{subject}'.\n"
+                f"2. Ensure the modules are structured sequentially, covering all major areas from foundational to advanced topics.\n"
+                f"3. Return the result strictly as a JSON object containing a list of 'modules'. Each module "
+                f"must have a 'title' (string) and a 'topics' list of strings (each topic must be highly detailed and specific, "
+                f"e.g. 'Acid-Base Titration Techniques' rather than just 'Titration').\n\n"
+                f"Format the final response strictly as a valid JSON object."
+            )
 
             def val_curriculum(text):
                 obj = extract_json_object(text)
@@ -165,6 +187,7 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
                 messages=[{"role": "user", "content": prompt}],
                 validation_func=val_curriculum,
                 system_prompt="Return ONLY valid JSON with 'modules' list. Each module has 'title' and 'topics' list. If you cannot find info, still try your best to return a JSON structure with general topics.",
+                use_tools=True,
                 on_status=_update_status,
             )
 
@@ -194,11 +217,22 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
                     status_text.value = "AI couldn't find verified syllabus info for this subject."
                 else:
                     status_text.value = "Failed to parse curriculum."
+                
+                # Restore inputs since generation failed
+                suggestions_col.visible = True
+                if selected_subject["value"] == "Other":
+                    custom_subject_field.visible = True
+                generate_btn.visible = True
+                progress_card.visible = False
         except Exception as ex:
             status_text.value = f"Error: {str(ex)[:50]}"
+            # Restore inputs on exception
+            suggestions_col.visible = True
+            if selected_subject["value"] == "Other":
+                custom_subject_field.visible = True
+            generate_btn.visible = True
+            progress_card.visible = False
         finally:
-            generate_btn.disabled = False
-            loading_ring.visible = False
             page.update()
 
     generate_btn = ft.FilledButton(
@@ -214,9 +248,8 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
         width=float("inf"),
     )
 
-    form_layout = ft.Column(
+    suggestions_col = ft.Column(
         [
-            ft.Text(f"Subject for {state.education_level}?", size=22, weight=ft.FontWeight.BOLD),
             ft.Text("Select a suggested subject below:", size=14, color=ft.Colors.ON_SURFACE_VARIANT),
             ft.Container(
                 content=subject_list,
@@ -225,8 +258,52 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
                 border_radius=AppStyles.RADIUS,
                 padding=10,
             ),
+        ],
+        spacing=10,
+    )
+
+    progress_card = ft.Container(
+        content=ft.Column(
+            [
+                ft.Row(
+                    [
+                        ft.ProgressRing(width=28, height=28, stroke_width=3, color=AppColors.PRIMARY),
+                        ft.Text("Designing Your Curriculum...", size=16, weight=ft.FontWeight.BOLD),
+                    ],
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    spacing=12,
+                ),
+                ft.Container(height=4),
+                ft.Text(
+                    "Akili is actively researching official exam boards and national curricula online to build a perfect study path for you.",
+                    size=12,
+                    color=ft.Colors.ON_SURFACE_VARIANT,
+                    text_align=ft.TextAlign.CENTER,
+                ),
+                ft.Container(
+                    content=status_text,
+                    padding=ft.Padding(12, 10, 12, 10),
+                    bgcolor=ft.Colors.with_opacity(0.05, ft.Colors.ON_SURFACE),
+                    border_radius=AppStyles.RADIUS_SMALL,
+                    alignment=ft.Alignment.CENTER,
+                ),
+            ],
+            spacing=12,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        padding=24,
+        border_radius=AppStyles.RADIUS,
+        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+        border=ft.Border.all(1, ft.Colors.with_opacity(0.1, AppColors.PRIMARY)),
+        visible=False,
+    )
+
+    form_layout = ft.Column(
+        [
+            ft.Text(f"Subject for {state.education_level}?", size=22, weight=ft.FontWeight.BOLD),
+            suggestions_col,
             custom_subject_field,
-            ft.Row([loading_ring, status_text], spacing=10),
+            progress_card,
             generate_btn,
             ad_service.get_banner_ad() if ad_service else ft.Container(),
         ],

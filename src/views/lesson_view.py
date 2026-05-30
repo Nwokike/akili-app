@@ -80,6 +80,12 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
                 f"- Include practice problems where relevant\n"
                 f"- Use markdown formatting\n"
                 f"- Aim for 800-1200 words\n"
+                f"- FORMULA RENDERING CONSTRAINT: Do NOT use LaTeX syntax (like $, $$, \\frac, \\sqrt, etc.) for scientific/mathematical equations. "
+                f"Instead, format all equations and formulas using standard Unicode characters, bold/italic text, and sub/superscripts "
+                f"(e.g., use 'H₂O', 'x²', '±', '√', 'π', and italics for variables) so they render beautifully and natively in standard markdown.\n"
+                f"- VIDEO RECOMMENDATION (OPTIONAL): If there are highly relevant educational YouTube videos that explain this lesson, "
+                f"suggest up to 2 real/valid video links. Format them at the very end of the lesson (just before the Notebook Checkpoint) "
+                f"in a single-line markdown format: `[VIDEO]: Title - https://www.youtube.com/watch?v=VIDEO_ID` (Do not add extra characters around this line).\n"
                 f"- END the lesson with a '📓 Notebook Checkpoint' section that lists 5-8 key points "
                 f"the student should write down in their notebook. Frame it as: 'Write these in your "
                 f"notebook — you will need them for your quiz and assignment.'"
@@ -122,18 +128,70 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
             loading_indicator.visible = False
             page.update()
 
+    async def _play_video(url: str, title: str):
+        page.session.set("playing_video_url", url)
+        page.session.set("playing_video_title", title)
+        if ad_service:
+            await ad_service.show_interstitial()
+        await navigate("/video_player")
+
+    def _build_premium_video_card(title: str, url: str):
+        return ft.Container(
+            content=ft.Row(
+                [
+                    ft.Container(
+                        content=ft.Icon(ft.Icons.PLAY_CIRCLE_FILL_ROUNDED, color=AppColors.PRIMARY, size=32),
+                        padding=10,
+                    ),
+                    ft.Column(
+                        [
+                            ft.Text("Premium Lesson Video", size=11, color=AppColors.PRIMARY, weight=ft.FontWeight.BOLD),
+                            ft.Text(title, size=14, weight=ft.FontWeight.W_600, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
+                            ft.Text("Tap to play video tutorial", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+                        ],
+                        spacing=2,
+                        expand=True,
+                    ),
+                    ft.Icon(ft.Icons.ARROW_FORWARD_IOS_ROUNDED, size=16, color=ft.Colors.ON_SURFACE_VARIANT),
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            ),
+            padding=16,
+            border_radius=AppStyles.RADIUS,
+            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+            border=ft.Border.all(1, ft.Colors.with_opacity(0.1, AppColors.PRIMARY)),
+            on_click=lambda e: page.run_task(_play_video, url, title),
+        )
+
     def _render_lesson(content: str):
         content = re.sub(r"\$\$(.*?)\$\$", r"\1", content, flags=re.DOTALL)
         content = re.sub(r"\$(.*?)\$", r"\1", content)
         lesson_content.controls.clear()
+
+        # Parse optional educational videos suggested by AI
+        video_links = []
+        pattern = r"\[VIDEO\]:\s*(.*?)\s*-\s*(https?://(?:www\.)?youtube\.com/watch\?v=[\w-]+)"
+        matches = re.findall(pattern, content)
+        for title, url in matches:
+            video_links.append({"title": title.strip(), "url": url.strip()})
+        
+        clean_content = re.sub(pattern, "", content)
+
         lesson_content.controls.append(
             ft.Markdown(
-                content,
+                clean_content,
                 selectable=True,
                 extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
                 expand=True,
             )
         )
+
+        if video_links:
+            lesson_content.controls.append(ft.Container(height=8))
+            lesson_content.controls.append(ft.Text("Recommended Tutorials", size=15, weight=ft.FontWeight.BOLD))
+            for v in video_links:
+                lesson_content.controls.append(_build_premium_video_card(v["title"], v["url"]))
+
         if ad_service:
             lesson_content.controls.append(ad_service.get_banner_ad())
         page.update()

@@ -340,27 +340,49 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
     )
 
     # 3. Theme Section
-    theme_selector = ft.SegmentedButton(
-        selected={current_theme},
-        allow_empty_selection=False,
-        segments=[
-            ft.Segment(
-                value="light",
-                label=ft.Text("Light"),
-                icon=ft.Icon(ft.Icons.LIGHT_MODE_ROUNDED),
+    def create_theme_card(mode: str, label: str, icon: str):
+        is_sel = current_theme == mode
+        return ft.Container(
+            content=ft.Row(
+                [
+                    ft.Icon(icon, color=AppColors.PRIMARY if is_sel else ft.Colors.ON_SURFACE_VARIANT, size=18),
+                    ft.Text(label, size=12, weight=ft.FontWeight.W_600 if is_sel else ft.FontWeight.NORMAL, color=AppColors.PRIMARY if is_sel else ft.Colors.ON_SURFACE),
+                ],
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=6,
             ),
-            ft.Segment(
-                value="dark",
-                label=ft.Text("Dark"),
-                icon=ft.Icon(ft.Icons.DARK_MODE_ROUNDED),
-            ),
-            ft.Segment(
-                value="system",
-                label=ft.Text("System"),
-                icon=ft.Icon(ft.Icons.SETTINGS_SYSTEM_DAYDREAM_ROUNDED),
-            ),
-        ],
-        on_change=lambda e: _on_theme_changed(next(iter(e.data))),
+            padding=ft.Padding(12, 10, 12, 10),
+            border_radius=8,
+            border=ft.Border.all(2, AppColors.PRIMARY) if is_sel else ft.Border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.ON_SURFACE)),
+            bgcolor=ft.Colors.with_opacity(0.1, AppColors.PRIMARY) if is_sel else ft.Colors.SURFACE_CONTAINER_LOW,
+            expand=True,
+            animate=ft.Animation(150, ft.AnimationCurve.EASE_OUT),
+            on_click=lambda e: page.run_task(change_theme_and_update, mode),
+        )
+
+    light_btn = create_theme_card("light", "Light", ft.Icons.LIGHT_MODE_ROUNDED)
+    dark_btn = create_theme_card("dark", "Dark", ft.Icons.DARK_MODE_ROUNDED)
+    system_btn = create_theme_card("system", "System", ft.Icons.SETTINGS_SYSTEM_DAYDREAM_ROUNDED)
+
+    async def change_theme_and_update(mode_str):
+        nonlocal current_theme
+        current_theme = mode_str
+        _on_theme_changed(mode_str)
+
+        for m, btn in [("light", light_btn), ("dark", dark_btn), ("system", system_btn)]:
+            is_sel = m == mode_str
+            btn.border = ft.Border.all(2, AppColors.PRIMARY) if is_sel else ft.Border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.ON_SURFACE))
+            btn.bgcolor = ft.Colors.with_opacity(0.1, AppColors.PRIMARY) if is_sel else ft.Colors.SURFACE_CONTAINER_LOW
+            btn.content.controls[0].color = AppColors.PRIMARY if is_sel else ft.Colors.ON_SURFACE_VARIANT
+            btn.content.controls[1].color = AppColors.PRIMARY if is_sel else ft.Colors.ON_SURFACE
+            btn.content.controls[1].weight = ft.FontWeight.W_600 if is_sel else ft.FontWeight.NORMAL
+            
+        page.update()
+
+    theme_selector = ft.Row(
+        [light_btn, dark_btn, system_btn],
+        spacing=8,
+        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
     )
     theme_content = ft.Container(
         content=theme_selector,

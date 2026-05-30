@@ -51,7 +51,9 @@ Current System Time: {current_time}
 
 [OUTPUT FORMAT]
 - Use beautiful Markdown with bold headings.
-- Use LaTeX for math ($...$ for inline, $$...$$ for blocks).
+- FORMULA RENDERING: Do NOT use LaTeX syntax (like $, $$, \frac, \sqrt, etc.) for scientific/mathematical equations.
+  Instead, format all equations and formulas using standard Unicode characters, bold/italic text, and sub/superscripts
+  (e.g., use 'H₂O', 'x²', '±', '√', 'π', and italics for variables) so they render beautifully and natively in standard markdown.
 - Keep it encouraging but academically rigorous."""
 
 

@@ -5,8 +5,9 @@ Section B: Theory (theory + subjective) — typed or image answers
 After completion, open answers are evaluated by AI with source material.
 """
 
+import asyncio
+import contextlib
 import json
-import time
 
 import flet as ft
 
@@ -31,10 +32,11 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
     questions: list[dict] = []
     current_q = {"index": 0, "answered": False}
     score = {"correct": 0, "open_total": 0.0, "open_earned": 0.0}
-    start_time = {"t": 0}
+    time_remaining = 900
+    timer_running = {"active": False}
     open_answers: dict[int, dict] = {}
 
-    timer_text = ft.Text("00:00", size=14, weight=ft.FontWeight.BOLD, color=AppColors.PRIMARY)
+    timer_text = ft.Text("15:00", size=14, weight=ft.FontWeight.BOLD, color=AppColors.PRIMARY)
     section_text = ft.Text("", size=14, weight=ft.FontWeight.BOLD, color=AppColors.ACCENT)
     question_text = ft.Text("", size=18, weight=ft.FontWeight.W_600)
     question_num = ft.Text("", size=13, color=ft.Colors.ON_SURFACE_VARIANT)
@@ -161,15 +163,43 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
         else:
             _render_question()
 
+    async def _handle_back(e=None):
+        timer_running["active"] = False
+        await navigate("/dashboard")
+
+    async def countdown_timer_task():
+        nonlocal time_remaining
+        timer_running["active"] = True
+        while time_remaining > 0 and timer_running["active"] and page.route == "/exam":
+            await asyncio.sleep(1)
+            if not timer_running["active"] or page.route != "/exam":
+                break
+            time_remaining -= 1
+            mins, secs = divmod(time_remaining, 60)
+            timer_text.value = f"{mins:02d}:{secs:02d}"
+            if time_remaining < 120:
+                timer_text.color = AppColors.ERROR
+            else:
+                timer_text.color = AppColors.PRIMARY
+            with contextlib.suppress(Exception):
+                timer_text.update()
+        
+        if time_remaining <= 0 and timer_running["active"] and page.route == "/exam":
+            timer_running["active"] = False
+            page.run_task(_finalize_exam)
+
     def _render_question():
         q = questions[current_q["index"]]
         qtype = q["type"]
         current_q["answered"] = False
 
         # Timer
-        elapsed = int(time.time() - start_time["t"])
-        mins, secs = divmod(elapsed, 60)
+        mins, secs = divmod(time_remaining, 60)
         timer_text.value = f"{mins:02d}:{secs:02d}"
+        if time_remaining < 120:
+            timer_text.color = AppColors.ERROR
+        else:
+            timer_text.color = AppColors.PRIMARY
 
         # Section label
         section_text.value = _get_section_label(current_q["index"])
@@ -231,6 +261,8 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
         page.update()
 
     async def _finalize_exam():
+        timer_running["active"] = False
+        _save_open_answer()
         open_qs = []
         open_ans = []
         for idx, q in enumerate(questions):
@@ -269,7 +301,7 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
 
     async def _show_results(evaluations: list):
         exam_content.visible = False
-        duration = int(time.time() - start_time.get("t", time.time()))
+        duration = 900 - time_remaining
         obj_count = sum(1 for q in questions if q["type"] == QuestionType.OBJECTIVE)
         total_score = score["correct"] + score["open_earned"]
         total_possible = obj_count + score["open_total"]
@@ -380,6 +412,7 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
         page.update()
 
     async def _generate_exam():
+        nonlocal time_remaining
         from components.offline_retry import OfflineRetryWidget
 
         if not state.is_online:
@@ -403,15 +436,23 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
 
         mix_instructions = get_mix_prompt(EXAM_MIX)
         prompt = (
-            f"Generate a mock exam for '{course['subject']}' at {course.get('level', state.education_level)} level.\n\n"
+            f"You are creating an official, high-stakes mock exam for '{course['subject']}' at {course.get('level', state.education_level)} level.\n"
+            f"To ensure maximum rigor and high standards, search the web specifically for actual past questions and curricula "
+            f"from reputable national and international exam bodies (e.g., WAEC, JAMB, GCSE, SAT, AP, NECO) related to '{course['subject']}'.\n\n"
+            f"CRITICAL REQUIREMENTS:\n"
+            f"1. Search specifically for actual past papers or standardized questions. Do NOT generate simple, shallow, or easy textbook questions.\n"
+            f"2. Every question must be challenging, authentic, and align perfectly with standard curricula (like WAEC, JAMB, or GCSE).\n"
+            f"3. Put ALL objective questions FIRST (Section A), then ALL theory/subjective (Section B).\n"
+            f"4. Use search_web to find and verify the questions, real source material, and actual solutions/explanations.\n"
+            f"5. Each question must include 'type', 'source_material', 'source_url'.\n"
+            f"6. FORMULA RENDERING CONSTRAINT: Do NOT use LaTeX syntax (like $, $$, \\frac, \\sqrt, etc.) for scientific/mathematical equations. "
+            f"Instead, format all equations and formulas using standard Unicode characters, bold/italic text, and sub/superscripts "
+            f"(e.g., use 'H₂O', 'x²', '±', '√', 'π', and italics for variables) so they render beautifully and natively in standard markdown.\n\n"
             f"EXAM STRUCTURE ({sum(EXAM_MIX.values())} questions total):\n{mix_instructions}\n\n"
-            f"IMPORTANT: Put ALL objective questions FIRST (Section A), then ALL theory/subjective (Section B).\n\n"
-            f"CRITICAL: Use search_web to find verified source material for EVERY question.\n"
-            f"Each question MUST include 'type', 'source_material', 'source_url'.\n"
             f"For objective: 'options' (4 strings), 'correct' (0-based), 'explanation'.\n"
             f"For theory: 'reference_answer', 'key_points'.\n"
             f"For subjective: 'marking_guide', 'sample_answer'.\n\n"
-            f"Return as JSON array."
+            f"Return ONLY a clean JSON array containing the generated questions."
         )
 
         def val_exam(text):
@@ -428,7 +469,7 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
         response = await ai_service.chat_with_healing(
             messages=[{"role": "user", "content": prompt}],
             validation_func=val_exam,
-            system_prompt="Generate a mock exam with verified source material. Return ONLY valid JSON array.",
+            system_prompt="Generate a rigorous mock exam with verified source material. Return ONLY valid JSON array.",
             use_tools=True,
             on_status=_update_status,
         )
@@ -439,10 +480,11 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
             open_qs = [q for q in parsed if q["type"] in QuestionType.OPEN]
             questions.extend(obj_qs + open_qs)
 
-            start_time["t"] = time.time()
+            time_remaining = 900
             loading_col.visible = False
             exam_content.visible = True
             _render_question()
+            page.run_task(countdown_timer_task)
         else:
             loading_col.controls[1].value = "⚠️ Generation failed."
             page.update()
@@ -450,7 +492,7 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
     header = ft.Container(
         content=ft.Row(
             [
-                ft.IconButton(icon=ft.Icons.ARROW_BACK_ROUNDED, on_click=lambda e: page.run_task(navigate, "/dashboard")),
+                ft.IconButton(icon=ft.Icons.ARROW_BACK_ROUNDED, on_click=lambda e: page.run_task(_handle_back)),
                 ft.Column(
                     [
                         ft.Text("Mock Exam", size=18, weight=ft.FontWeight.BOLD),
