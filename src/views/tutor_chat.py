@@ -521,6 +521,64 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         disabled=not state.is_online,
     )
 
+    async def _on_mic_click(e):
+        if not audio_service.available:
+            page.snack_bar = ft.SnackBar(ft.Text("Voice note recording not supported on this platform."))
+            page.snack_bar.open = True
+            page.update()
+            return
+
+        if not audio_service.is_recording:
+            success = await audio_service.start_recording()
+            if success:
+                mic_btn.icon = ft.Icons.STOP_ROUNDED
+                mic_btn.icon_color = AppColors.ERROR
+                input_bar_field.placeholder = "🔴 Recording... Tap mic to stop"
+                input_bar_field.disabled = True
+                send_btn.disabled = True
+                attach_btn.disabled = True
+                page.update()
+        else:
+            mic_btn.icon = ft.Icons.MIC_ROUNDED
+            mic_btn.icon_color = AppColors.PRIMARY
+            input_bar_field.placeholder = "Ask Akili anything..."
+            input_bar_field.disabled = False
+            send_btn.disabled = False
+            attach_btn.disabled = False
+            page.update()
+
+            page.snack_bar = ft.SnackBar(ft.Text("🎙️ Transcribing voice note..."), bgcolor=AppColors.PRIMARY)
+            page.snack_bar.open = True
+            page.update()
+
+            result = await audio_service.stop_recording()
+            if result:
+                data, mime = result
+                status_indicator.visible = True
+                status_text.value = "🎙️ Transcribing voice note..."
+                page.update()
+
+                transcript = await ai_service.transcribe_audio(data, mime)
+                status_indicator.visible = False
+                
+                if transcript and not transcript.startswith("["):
+                    input_bar_field.value = transcript
+                    page.snack_bar = ft.SnackBar(ft.Text("🗣️ Voice note transcribed!"), bgcolor=AppColors.SUCCESS)
+                else:
+                    err_msg = transcript.replace("[", "").replace("]", "") if transcript else "Could not transcribe."
+                    page.snack_bar = ft.SnackBar(ft.Text(f"❌ {err_msg}"), bgcolor=AppColors.ERROR)
+                page.snack_bar.open = True
+            page.update()
+
+    mic_btn = ft.IconButton(
+        icon=ft.Icons.MIC_ROUNDED,
+        icon_size=22,
+        icon_color=AppColors.PRIMARY,
+        tooltip="Record voice note",
+        on_click=lambda e: page.run_task(_on_mic_click),
+        disabled=not state.is_online,
+    )
+
     send_btn = ft.IconButton(
         icon=ft.Icons.SEND_ROUNDED,
         icon_size=22,
@@ -550,6 +608,7 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         content=ft.Row(
             [
                 attach_btn,
+                mic_btn,
                 input_bar_field,
                 send_btn,
             ],
