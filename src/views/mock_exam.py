@@ -144,6 +144,8 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
 
     def _save_open_answer():
         idx = current_q["index"]
+        if idx >= len(questions):
+            return
         q = questions[idx]
         if q["type"] in QuestionType.OPEN:
             open_answers[idx] = {
