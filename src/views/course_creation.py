@@ -97,7 +97,7 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
                     subject_list.controls.append(container)
 
                 # Append Other option
-                other_text = ft.Text("Other (Type custom subject...)", size=14, color=AppColors.PRIMARY, weight=ft.FontWeight.BOLD)
+                other_text = ft.Text("Other (Type subject...)", size=14, color=AppColors.PRIMARY, weight=ft.FontWeight.BOLD)
                 other_container = ft.Container(
                     content=ft.Row([other_text]),
                     padding=ft.Padding(16, 12, 16, 12),
