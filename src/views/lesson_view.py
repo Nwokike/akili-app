@@ -1,8 +1,10 @@
 import json
+import logging
 import re
 
 import flet as ft
 
+from components.rich_content import build_video_card, extract_lesson_videos, render_rich_content
 from core.state import state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager
@@ -10,6 +12,8 @@ from services.ai_service import ai_service
 from services.assignment_service import generate_assignment
 from services.credit_service import credit_service
 from services.gamification import gamification_service
+
+logger = logging.getLogger(__name__)
 
 
 async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
@@ -23,11 +27,12 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
     cached = module.get("lesson_cache")
 
     lesson_content = ft.Column(spacing=16, expand=True)
+    loading_status_text = ft.Text("Searching web for accurate content...", size=12, color=ft.Colors.ON_SURFACE_VARIANT)
     loading_indicator = ft.Column(
         [
             ft.ProgressRing(width=40, height=40, stroke_width=3, color=AppColors.PRIMARY),
             ft.Text("Generating lesson...", size=14, weight=ft.FontWeight.W_500),
-            ft.Text("Searching web for accurate content", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+            loading_status_text,
         ],
         horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         spacing=12,
@@ -61,8 +66,13 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
             page.update()
             return
 
+        loading_status_text.value = "Searching web for accurate content..."
         loading_indicator.visible = True
         page.update()
+
+        def _update_status(msg):
+            loading_status_text.value = msg
+            page.update()
 
         try:
             level = course.get("level", state.education_level or "Grade 10")
@@ -94,6 +104,7 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
             response = await ai_service.chat(
                 messages=[{"role": "user", "content": prompt}],
                 system_prompt=f"You are Akili, a helpful AI tutor for {level} students.",
+                on_status=_update_status,
             )
 
             content = response.get("content", "")
@@ -108,6 +119,7 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
                         module=module,
                         course=course,
                         lesson_content=content,
+                        on_status=_update_status,
                     )
                     if a_id:
                         page.snack_bar = ft.SnackBar(
@@ -129,68 +141,53 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
             page.update()
 
     async def _play_video(url: str, title: str):
-        page.session.set("playing_video_url", url)
-        page.session.set("playing_video_title", title)
+        """Navigate to the ImmersivePlayer."""
+        logger.info("Playing lesson video: %s", title)
+        page.data["playing_video_url"] = url
+        page.data["playing_video_title"] = title
         if ad_service:
             await ad_service.show_interstitial()
         await navigate("/video_player")
 
-    def _build_premium_video_card(title: str, url: str):
-        return ft.Container(
-            content=ft.Row(
-                [
-                    ft.Container(
-                        content=ft.Icon(ft.Icons.PLAY_CIRCLE_FILL_ROUNDED, color=AppColors.PRIMARY, size=32),
-                        padding=10,
-                    ),
-                    ft.Column(
-                        [
-                            ft.Text("Premium Lesson Video", size=11, color=AppColors.PRIMARY, weight=ft.FontWeight.BOLD),
-                            ft.Text(title, size=14, weight=ft.FontWeight.W_600, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
-                            ft.Text("Tap to play video tutorial", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
-                        ],
-                        spacing=2,
-                        expand=True,
-                    ),
-                    ft.Icon(ft.Icons.ARROW_FORWARD_IOS_ROUNDED, size=16, color=ft.Colors.ON_SURFACE_VARIANT),
-                ],
-                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-            ),
-            padding=16,
-            border_radius=AppStyles.RADIUS,
-            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
-            border=ft.Border.all(1, ft.Colors.with_opacity(0.1, AppColors.PRIMARY)),
-            on_click=lambda e: page.run_task(_play_video, url, title),
-        )
-
     def _render_lesson(content: str):
+        # Strip LaTeX
         content = re.sub(r"\$\$(.*?)\$\$", r"\1", content, flags=re.DOTALL)
         content = re.sub(r"\$(.*?)\$", r"\1", content)
         lesson_content.controls.clear()
 
-        # Parse optional educational videos suggested by AI
-        video_links = []
-        pattern = r"\[VIDEO\]:\s*(.*?)\s*-\s*(https?://(?:www\.)?youtube\.com/watch\?v=[\w-]+)"
-        matches = re.findall(pattern, content)
-        for title, url in matches:
-            video_links.append({"title": title.strip(), "url": url.strip()})
-        
-        clean_content = re.sub(pattern, "", content)
-
-        lesson_content.controls.append(
-            ft.Markdown(
-                clean_content,
-                selectable=True,
-                extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
-                expand=True,
-            )
+        # Extract lesson-specific video format [VIDEO]: Title - URL
+        lesson_videos = extract_lesson_videos(content)
+        # Remove [VIDEO]: lines from content
+        clean_content = re.sub(
+            r"\[VIDEO\]:\s*(.*?)\s*-\s*(https?://(?:www\.)?youtube\.com/watch\?v=[\w-]+)",
+            "",
+            content,
         )
 
-        if video_links:
-            lesson_content.controls.append(ft.Container(height=8))
-            lesson_content.controls.append(ft.Text("Recommended Tutorials", size=15, weight=ft.FontWeight.BOLD))
-            for v in video_links:
-                lesson_content.controls.append(_build_premium_video_card(v["title"], v["url"]))
+        # Render rich content (markdown + images + inline video links)
+        controls = render_rich_content(
+            content=clean_content,
+            page=page,
+            on_play_video=_play_video,
+            show_images=True,
+            show_videos=True,
+        )
+        lesson_content.controls.extend(controls)
+
+        # Lesson-specific recommended videos
+        if lesson_videos:
+            lesson_content.controls.append(ft.Container(height=12))
+            lesson_content.controls.append(ft.Text("🎬 Recommended Tutorials", size=16, weight=ft.FontWeight.BOLD))
+            for v in lesson_videos:
+                lesson_content.controls.append(
+                    build_video_card(
+                        title=v["title"],
+                        url=v["url"],
+                        on_play=_play_video,
+                        page=page,
+                        thumbnail=v.get("thumbnail"),
+                    )
+                )
 
         if ad_service:
             lesson_content.controls.append(ad_service.get_banner_ad())

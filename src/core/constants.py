@@ -14,6 +14,11 @@ USER_AGENT = f"AkiliApp/{APP_VERSION}"
 MAX_VOICE_DURATION_SEC = 60
 MAX_AUDIO_SIZE_BYTES = 25 * 1024 * 1024  # 25MB
 
+# Video player retry settings
+STREAM_RETRY_MAX = 3
+STREAM_RECONNECT_MAX = 5
+STREAM_RETRY_DELAY = 2
+
 
 class AITaskType:
     TEXT = "text"

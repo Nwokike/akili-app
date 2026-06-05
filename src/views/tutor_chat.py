@@ -5,13 +5,15 @@ The tutor knows everything about the student and shows granular status
 cards with metadata. All media bytes are ephemeral (no bloat).
 """
 
+import asyncio
 import contextlib
-import re
+import logging
 
 import flet as ft
 
 from components.credit_dialog import show_credits_dialog
 from components.media_preview import MediaPreviewBar
+from components.rich_content import render_rich_content
 from core.constants import AITaskType
 from core.state import state
 from core.theme import AppColors, AppStyles
@@ -21,6 +23,8 @@ from services.audio import AudioService
 from services.credit_service import credit_service
 from services.file_picker import FilePickerService
 from services.gamification import gamification_service
+
+logger = logging.getLogger(__name__)
 
 
 def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
@@ -33,6 +37,10 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
     chat_messages: list[dict] = []
     pending_media: list[dict] = []
     session_id = {"value": None}
+
+    tutor_recording_time = 0
+    tutor_is_recording = False
+    tutor_is_transcribing = False
 
     messages_col = ft.Column(spacing=8, scroll=ft.ScrollMode.AUTO, expand=True, auto_scroll=True)
 
@@ -155,105 +163,23 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
 
         return "\n".join(lines)
 
-    def _extract_video_links(text: str) -> list[dict]:
-        """Extract video links with metadata from markdown text."""
-        pattern = r"\[([^\]]+)\]\((https?://[^\)]+)\)"
-        matches = re.findall(pattern, text)
-        video_links = []
-        video_domains = ("youtube.com", "youtu.be", "vimeo.com", "dailymotion.com")
-        video_extensions = (".mp4", ".mkv", ".avi", ".mov", ".3gp", ".webm")
-        for title, url in matches:
-            is_video = any(d in url.lower() for d in video_domains) or any(url.lower().endswith(ext) for ext in video_extensions)
-            if is_video:
-                video_links.append({"title": title, "url": url})
-        return video_links
-
-    def _extract_video_metadata(text: str, url: str) -> dict:
-        """Try to extract video metadata from surrounding text context."""
-        metadata = {"duration": "", "publisher": "", "description": ""}
-        # Look for common metadata patterns near the URL
-        lines = text.split("\n")
-        for line in lines:
-            lower = line.lower()
-            if "duration" in lower or "min" in lower:
-                duration_match = re.search(r"(\d+:\d+(?::\d+)?|\d+\s*min)", line)
-                if duration_match:
-                    metadata["duration"] = duration_match.group(1)
-            if "by " in lower or "from " in lower:
-                pub_match = re.search(r"(?:by|from)\s+([A-Za-z0-9\s]+)", line, re.IGNORECASE)
-                if pub_match:
-                    metadata["publisher"] = pub_match.group(1).strip()[:30]
-        return metadata
-
     async def _play_video(url: str, title: str):
-        page.session.set("playing_video_url", url)
-        page.session.set("playing_video_title", title)
+        """Navigate to the ImmersivePlayer."""
+        logger.info("Playing video: %s", title)
+        page.data["playing_video_url"] = url
+        page.data["playing_video_title"] = title
         if ad_service:
             await ad_service.show_interstitial()
         await navigate("/video_player")
 
     async def _handle_link_tap(href: str):
-        video_domains = ("youtube.com", "youtu.be", "vimeo.com")
-        video_extensions = (".mp4", ".mkv", ".avi", ".mov", ".3gp", ".webm")
-        if any(d in href.lower() for d in video_domains) or any(href.lower().endswith(ext) for ext in video_extensions):
+        """Route video links to ImmersivePlayer, others to browser."""
+        from components.rich_content import _is_video_url
+
+        if _is_video_url(href):
             await _play_video(href, "Video")
         else:
             await page.launch_url_async(href)
-
-    def _build_video_card(title: str, url: str, metadata: dict | None = None):
-        """Rich video card with metadata, thumbnail placeholder, and play button."""
-        meta = metadata or {}
-        subtitle_parts = []
-        if meta.get("duration"):
-            subtitle_parts.append(f"⏱ {meta['duration']}")
-        if meta.get("publisher"):
-            subtitle_parts.append(f"by {meta['publisher']}")
-        subtitle = " · ".join(subtitle_parts) if subtitle_parts else "Tap to play video"
-
-        # Determine platform icon
-        platform_icon = ft.Icons.PLAY_CIRCLE_FILL_ROUNDED
-        platform_color = AppColors.PRIMARY
-        if "youtube" in url.lower() or "youtu.be" in url.lower():
-            platform_color = ft.Colors.RED_700
-
-        return ft.Container(
-            content=ft.Row(
-                [
-                    ft.Container(
-                        content=ft.Icon(platform_icon, size=32, color=platform_color),
-                        width=56,
-                        height=56,
-                        bgcolor=ft.Colors.with_opacity(0.08, platform_color),
-                        border_radius=12,
-                        alignment=ft.Alignment.CENTER,
-                    ),
-                    ft.Column(
-                        [
-                            ft.Text(title, size=14, weight=ft.FontWeight.W_600, max_lines=2, overflow=ft.TextOverflow.ELLIPSIS),
-                            ft.Text(subtitle, size=11, color=ft.Colors.ON_SURFACE_VARIANT),
-                        ],
-                        spacing=3,
-                        expand=True,
-                        tight=True,
-                    ),
-                    ft.IconButton(
-                        icon=ft.Icons.PLAY_ARROW_ROUNDED,
-                        icon_color=platform_color,
-                        icon_size=28,
-                        on_click=lambda e: page.run_task(_play_video, url, title),
-                        bgcolor=ft.Colors.with_opacity(0.06, platform_color),
-                        style=ft.ButtonStyle(shape=ft.CircleBorder()),
-                    ),
-                ],
-                spacing=12,
-                vertical_alignment=ft.CrossAxisAlignment.CENTER,
-            ),
-            padding=ft.Padding(12, 10, 8, 10),
-            border_radius=AppStyles.RADIUS,
-            border=ft.Border.all(1, ft.Colors.with_opacity(0.08, ft.Colors.ON_SURFACE)),
-            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
-            margin=ft.Margin(0, 4, 0, 4),
-        )
 
     def _build_user_bubble(text: str):
         """Beautiful user message bubble."""
@@ -271,25 +197,13 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         )
 
     def _build_assistant_bubble(content: str):
-        """Beautiful assistant message bubble with video cards."""
-        video_links = _extract_video_links(content)
-
-        controls = []
-        # Avatar + markdown
-        md = ft.Markdown(
-            content or "...",
-            selectable=True,
-            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
-            on_tap_link=lambda e: page.run_task(_handle_link_tap, e.href),
+        """Beautiful assistant bubble with rich video/image cards."""
+        controls = render_rich_content(
+            content=content or "...",
+            page=page,
+            on_play_video=_play_video,
+            on_tap_link=_handle_link_tap,
         )
-        controls.append(md)
-
-        # Video cards with metadata
-        if video_links:
-            controls.append(ft.Container(height=6))
-            for v in video_links:
-                meta = _extract_video_metadata(content, v["url"])
-                controls.append(_build_video_card(v["title"], v["url"], meta))
 
         bubble = ft.Container(
             content=ft.Column(controls, tight=True, spacing=4),
@@ -334,14 +248,17 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         attach_btn.disabled = not state.is_online
         send_btn.disabled = not state.is_online
 
+        # Welcome card visibility gating
+        welcome.visible = len(chat_messages) == 0
+
         page.update()
 
     def _update_streaming_bubble(msg_idx: int, content: str):
         """Update the last assistant bubble during streaming."""
-        if msg_idx < len(messages_col.controls):
-            row = messages_col.controls[msg_idx]
+        if messages_col.controls:
+            row = messages_col.controls[-1]
             # Row > [avatar, bubble_container]
-            if len(row.controls) >= 2:
+            if isinstance(row, ft.Row) and len(row.controls) >= 2:
                 bubble = row.controls[1]
                 if bubble.content and bubble.content.controls:
                     md = bubble.content.controls[0]
@@ -360,6 +277,9 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
             page.snack_bar.open = True
             page.update()
             return
+
+        # Clear input immediately
+        input_bar_field.value = ""
 
         media_to_process = list(pending_media)
         pending_media.clear()
@@ -397,9 +317,7 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         )
 
         def _update_status(msg):
-            status_text.value = msg
-            status_indicator.visible = True
-            page.update()
+            _update_streaming_bubble(msg_idx, msg)
 
         try:
             full_response = ""
@@ -433,7 +351,6 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         if session_id["value"]:
             await db_manager.save_chat(session_id["value"], chat_messages)
 
-        status_indicator.visible = False
         _render_chat()
 
     async def _handle_mic(stop: bool = False):
@@ -521,34 +438,107 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         disabled=not state.is_online,
     )
 
-    async def _on_mic_click(e):
+    recording_timer = ft.Text("00:00 / 01:00", size=12, color=AppColors.ERROR, visible=False, weight=ft.FontWeight.BOLD)
+
+    transcribing_indicator = ft.Row(
+        [
+            ft.ProgressRing(width=16, height=16, stroke_width=2, color=AppColors.PRIMARY),
+            ft.Text(
+                "Transcribing your voice...",
+                size=12,
+                color=AppColors.PRIMARY,
+                weight=ft.FontWeight.BOLD,
+            ),
+        ],
+        spacing=8,
+        alignment=ft.MainAxisAlignment.CENTER,
+        visible=False,
+    )
+
+    async def _update_mic_timer():
+        nonlocal tutor_recording_time
+        while tutor_is_recording:
+            await asyncio.sleep(1)
+            if tutor_is_recording:
+                tutor_recording_time += 1
+                recording_timer.value = f"00:{tutor_recording_time:02d} / 01:00"
+                with contextlib.suppress(Exception):
+                    recording_timer.update()
+
+    async def _handle_mic_auto_stop(result):
+        nonlocal tutor_is_recording, tutor_is_transcribing
+        tutor_is_recording = False
+        tutor_is_transcribing = True
+
+        mic_btn.icon = ft.Icons.MIC_ROUNDED
+        mic_btn.icon_color = AppColors.PRIMARY
+        input_bar_field.placeholder = "Ask Akili anything..."
+        recording_timer.visible = False
+        transcribing_indicator.visible = True
+        page.update()
+
+        if result:
+            data, mime = result
+            status_indicator.visible = True
+            status_text.value = "🎙️ Transcribing voice note..."
+            page.update()
+
+            transcript = await ai_service.transcribe_audio(data, mime)
+            status_indicator.visible = False
+
+            if transcript and not transcript.startswith("["):
+                input_bar_field.value = transcript
+                page.snack_bar = ft.SnackBar(ft.Text("🗣️ Voice note transcribed!"), bgcolor=AppColors.SUCCESS)
+            else:
+                err_msg = transcript.replace("[", "").replace("]", "") if transcript else "Could not transcribe."
+                page.snack_bar = ft.SnackBar(ft.Text(f"❌ {err_msg}"), bgcolor=AppColors.ERROR)
+            page.snack_bar.open = True
+
+        input_bar_field.disabled = False
+        send_btn.disabled = False
+        attach_btn.disabled = False
+        transcribing_indicator.visible = False
+        tutor_is_transcribing = False
+        page.update()
+
+    async def _on_mic_click(e=None):
+        nonlocal tutor_is_recording, tutor_is_transcribing, tutor_recording_time
         if not audio_service.available:
             page.snack_bar = ft.SnackBar(ft.Text("Voice note recording not supported on this platform."))
             page.snack_bar.open = True
             page.update()
             return
 
-        if not audio_service.is_recording:
-            success = await audio_service.start_recording()
-            if success:
+        if tutor_is_transcribing:
+            return
+
+        if not tutor_is_recording:
+            started = await audio_service.start_recording(on_auto_stop=lambda res: page.run_task(_handle_mic_auto_stop, res))
+            if started:
+                tutor_is_recording = True
+                tutor_recording_time = 0
+
                 mic_btn.icon = ft.Icons.STOP_ROUNDED
                 mic_btn.icon_color = AppColors.ERROR
                 input_bar_field.placeholder = "🔴 Recording... Tap mic to stop"
                 input_bar_field.disabled = True
                 send_btn.disabled = True
                 attach_btn.disabled = True
+
+                recording_timer.value = "00:00 / 01:00"
+                recording_timer.visible = True
                 page.update()
+                page.run_task(_update_mic_timer)
         else:
+            tutor_is_recording = False
+            tutor_is_transcribing = True
+
             mic_btn.icon = ft.Icons.MIC_ROUNDED
             mic_btn.icon_color = AppColors.PRIMARY
             input_bar_field.placeholder = "Ask Akili anything..."
-            input_bar_field.disabled = False
-            send_btn.disabled = False
-            attach_btn.disabled = False
-            page.update()
 
-            page.snack_bar = ft.SnackBar(ft.Text("🎙️ Transcribing voice note..."), bgcolor=AppColors.PRIMARY)
-            page.snack_bar.open = True
+            recording_timer.visible = False
+            transcribing_indicator.visible = True
             page.update()
 
             result = await audio_service.stop_recording()
@@ -560,7 +550,7 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
 
                 transcript = await ai_service.transcribe_audio(data, mime)
                 status_indicator.visible = False
-                
+
                 if transcript and not transcript.startswith("["):
                     input_bar_field.value = transcript
                     page.snack_bar = ft.SnackBar(ft.Text("🗣️ Voice note transcribed!"), bgcolor=AppColors.SUCCESS)
@@ -568,6 +558,12 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
                     err_msg = transcript.replace("[", "").replace("]", "") if transcript else "Could not transcribe."
                     page.snack_bar = ft.SnackBar(ft.Text(f"❌ {err_msg}"), bgcolor=AppColors.ERROR)
                 page.snack_bar.open = True
+
+            input_bar_field.disabled = False
+            send_btn.disabled = False
+            attach_btn.disabled = False
+            transcribing_indicator.visible = False
+            tutor_is_transcribing = False
             page.update()
 
     mic_btn = ft.IconButton(
@@ -605,15 +601,23 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
     )
 
     input_bar = ft.Container(
-        content=ft.Row(
+        content=ft.Column(
             [
-                attach_btn,
-                mic_btn,
-                input_bar_field,
-                send_btn,
+                transcribing_indicator,
+                ft.Row(
+                    [
+                        attach_btn,
+                        mic_btn,
+                        recording_timer,
+                        input_bar_field,
+                        send_btn,
+                    ],
+                    spacing=4,
+                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
             ],
-            spacing=4,
-            vertical_alignment=ft.CrossAxisAlignment.END,
+            tight=True,
+            spacing=6,
         ),
         padding=ft.Padding(8, 6, 8, 10),
         bgcolor=ft.Colors.SURFACE,
@@ -668,7 +672,6 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
                     content=ft.Column(
                         [
                             header,
-                            status_indicator,
                             ft.Container(
                                 content=ft.Stack(
                                     [

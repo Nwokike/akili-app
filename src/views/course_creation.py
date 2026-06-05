@@ -217,7 +217,7 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
                     status_text.value = "AI couldn't find verified syllabus info for this subject."
                 else:
                     status_text.value = "Failed to parse curriculum."
-                
+
                 # Restore inputs since generation failed
                 suggestions_col.visible = True
                 if selected_subject["value"] == "Other":

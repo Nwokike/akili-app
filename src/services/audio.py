@@ -48,8 +48,6 @@ class AudioService:
                 on_state_change=self._on_state_change,
                 on_stream=self._on_stream,
             )
-            if self._recorder not in page.overlay:
-                page.overlay.append(self._recorder)
 
     @property
     def available(self) -> bool:

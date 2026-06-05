@@ -31,11 +31,19 @@ async def main(page: ft.Page):
     page.spacing = 0
 
     # --- Offline Mode Indicator ---
+    def show_banner():
+        page.banner.open = True
+        page.update()
+
+    def close_banner(e=None):
+        page.banner.open = False
+        page.update()
+
     offline_banner = ft.Banner(
         bgcolor=ft.Colors.BLACK,
         content=ft.Text("offline mode: progress is saved locally.", color=ft.Colors.WHITE),
         leading=ft.Icon(ft.Icons.WIFI_OFF, color=ft.Colors.WHITE),
-        actions=[ft.TextButton("dismiss", style=ft.ButtonStyle(color=ft.Colors.WHITE), on_click=lambda e: page.close_banner())],
+        actions=[ft.TextButton("dismiss", style=ft.ButtonStyle(color=ft.Colors.WHITE), on_click=close_banner)],
     )
     page.banner = offline_banner
 
@@ -48,9 +56,9 @@ async def main(page: ft.Page):
             state.is_online = await check_internet_connection()
 
         if not state.is_online and not page.banner.open:
-            page.show_banner(offline_banner)
+            show_banner()
         elif state.is_online and page.banner.open:
-            page.close_banner()
+            close_banner()
 
     # Initialize Connectivity (Service, not a Control — no need to add to page)
     connectivity = ft.Connectivity()
@@ -59,7 +67,7 @@ async def main(page: ft.Page):
     # Perform initial active connectivity verification
     state.is_online = await check_internet_connection()
     if not state.is_online:
-        page.show_banner(offline_banner)
+        show_banner()
 
     # --- Service Initialization ---
     ad_service = AdService(page)
@@ -169,9 +177,32 @@ async def main(page: ft.Page):
 
         # --- New Routes ---
         elif page.route.startswith("/video_player"):
-            from views.video_player import build_video_player_view
+            from components.immersive_player import ImmersivePlayer
 
-            page.views.append(build_video_player_view(page, navigate))
+            video_url = page.data.get("playing_video_url") or ""
+            video_title = page.data.get("playing_video_title") or "Educational Video"
+
+            async def _close_player():
+                if len(page.views) > 1:
+                    page.views.pop()
+                    page.update()
+                else:
+                    await navigate("/tutor")
+
+            player = ImmersivePlayer(
+                resource=video_url,
+                title=video_title,
+                on_close=_close_player,
+                ad_service=ad_service,
+            )
+            page.views.append(
+                ft.View(
+                    route="/video_player",
+                    controls=[player],
+                    padding=0,
+                )
+            )
+            page.run_task(player.start_playback)
 
         elif page.route == "/premium":
             from views.premium_preview import get_premium_preview_view

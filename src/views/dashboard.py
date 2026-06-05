@@ -77,10 +77,7 @@ async def build_dashboard_view(page: ft.Page, navigate) -> ft.View:
         padding=ft.Padding(16, 12, 16, 12),
     )
 
-    AVATARS = ["🦊", "🦁", "🐼", "🐨", "🐯", "🐸", "🐹", "🦄"]
-    user_avatar = AVATARS[state.avatar_index] if 0 <= state.avatar_index < len(AVATARS) else "🦊"
-
-    # ── Welcome Section (Premium with Profile Avatar) ─────────────────
+    # ── Welcome Section ─────────────────
     welcome_section = ft.Container(
         content=ft.Row(
             [
@@ -93,7 +90,7 @@ async def build_dashboard_view(page: ft.Page, navigate) -> ft.View:
                     expand=True,
                 ),
                 ft.Container(
-                    content=ft.Text(user_avatar, size=32),
+                    content=ft.Text("🎓", size=32),
                     width=60,
                     height=60,
                     bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,

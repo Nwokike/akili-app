@@ -34,24 +34,30 @@ COMMON_HEADERS = {
 def get_dynamic_system_prompt(user_name="Student", education_level="unknown") -> str:
     """Injects real-world time and strict anti-hallucination rules dynamically."""
     current_time = get_current_time()
+    from datetime import datetime
 
-    return f"""You are Akili, an expert AI tutor. 
+    year = datetime.now().year
+
+    return f"""You are Akili, an expert AI tutor.
+
+⚠️ TODAY'S DATE: {current_time}
+⚠️ CURRENT YEAR: {year}
 
 [CONTEXT]
 Student: {user_name}
 Level: {education_level}
-Current System Time: {current_time}
 
 [STRICT TOOL USAGE PROTOCOL]
 1. FOR ANY FACTUAL, HISTORICAL, OR CURRICULUM QUESTIONS: You MUST use the `search_web` tool FIRST.
-2. ALWAYS include the year and educational level in your search queries (e.g., "History JSS3 curriculum Nigeria 2026").
+2. ALWAYS include the current year ({year}) and educational level in your search queries (e.g., "History JSS3 curriculum Nigeria {year}").
 3. After searching, if the results are summarized or truncated, use the `read_page` tool on the most relevant URLs to "fetch" the full content.
 4. DO NOT GUESS OR HALLUCINATE. If tools provide no information, explicitly state: "I'm sorry, but I couldn't find verified syllabus information for this topic. Could you please provide more details or rephrase?"
 5. SOURCES: You must cite your sources at the end of every response that used search.
+6. NEVER use outdated years in search queries. The current year is {year}.
 
 [OUTPUT FORMAT]
 - Use beautiful Markdown with bold headings.
-- FORMULA RENDERING: Do NOT use LaTeX syntax (like $, $$, \frac, \sqrt, etc.) for scientific/mathematical equations.
+- FORMULA RENDERING: Do NOT use LaTeX syntax (like $, $$, \\frac, \\sqrt, etc.) for scientific/mathematical equations.
   Instead, format all equations and formulas using standard Unicode characters, bold/italic text, and sub/superscripts
   (e.g., use 'H₂O', 'x²', '±', '√', 'π', and italics for variables) so they render beautifully and natively in standard markdown.
 - Keep it encouraging but academically rigorous."""
@@ -60,15 +66,6 @@ Current System Time: {current_time}
 class AIService:
     def __init__(self):
         logger.info("Initializing AIService...")
-        self._client = httpx.AsyncClient(
-            headers=COMMON_HEADERS,
-            timeout=httpx.Timeout(120.0, connect=10.0),
-            limits=httpx.Limits(
-                max_connections=10,
-                max_keepalive_connections=5,
-                keepalive_expiry=30,
-            ),
-        )
 
     async def _post_with_backoff(self, payload: dict) -> dict:
         max_retries = 5
@@ -76,16 +73,20 @@ class AIService:
 
         for attempt in range(max_retries):
             try:
-                resp = await self._client.post(f"{API_GATEWAY}/chat", json=payload)
-                if resp.status_code != 200:
-                    try:
-                        error_detail = resp.json()
-                        logger.warning("AI Error (Attempt %d): %s", attempt + 1, json.dumps(error_detail))
-                    except Exception:
-                        logger.warning("AI Error Raw (Attempt %d): %s", attempt + 1, resp.text[:300])
-                    resp.raise_for_status()
+                async with httpx.AsyncClient(
+                    headers=COMMON_HEADERS,
+                    timeout=httpx.Timeout(120.0, connect=10.0),
+                ) as client:
+                    resp = await client.post(f"{API_GATEWAY}/chat", json=payload)
+                    if resp.status_code != 200:
+                        try:
+                            error_detail = resp.json()
+                            logger.warning("AI Error (Attempt %d): %s", attempt + 1, json.dumps(error_detail))
+                        except Exception:
+                            logger.warning("AI Error Raw (Attempt %d): %s", attempt + 1, resp.text[:300])
+                        resp.raise_for_status()
 
-                return resp.json()
+                    return resp.json()
 
             except (httpx.HTTPStatusError, httpx.RequestError) as e:
                 logger.warning("AI Attempt %d Failed: %s", attempt + 1, e)
@@ -103,7 +104,13 @@ class AIService:
         for attempt in range(max_retries):
             print(f"\n[DEBUG] Requesting {API_GATEWAY}/chat (Attempt {attempt + 1})", flush=True)
             try:
-                async with self._client.stream("POST", f"{API_GATEWAY}/chat", json=payload) as response:
+                async with (
+                    httpx.AsyncClient(
+                        headers=COMMON_HEADERS,
+                        timeout=httpx.Timeout(120.0, connect=10.0),
+                    ) as client,
+                    client.stream("POST", f"{API_GATEWAY}/chat", json=payload) as response,
+                ):
                     if response.status_code != 200:
                         body = await response.aread()
                         try:
@@ -118,6 +125,7 @@ class AIService:
                         await asyncio.sleep(0.5)
                         response.raise_for_status()
 
+                    line_count = 0
                     async for line in response.aiter_lines():
                         if line.startswith("data: "):
                             data_str = line[6:]
@@ -125,15 +133,37 @@ class AIService:
                                 break
                             try:
                                 chunk = json.loads(data_str)
-                                delta = chunk.get("choices", [{}])[0].get("delta", {})
 
-                                # YIELD BOTH CONTENT AND REASONING
-                                yield {
-                                    "content": delta.get("content", ""),
-                                    "reasoning": delta.get("reasoning_content", ""),
+                                # Detect stream-level errors (rate limit, etc.)
+                                if "error" in chunk:
+                                    error_msg = chunk["error"]
+                                    if isinstance(error_msg, dict):
+                                        error_msg = error_msg.get("message", str(error_msg))
+                                    print(f"[AI Stream Error] {error_msg}", flush=True)
+                                    yield {"error": str(error_msg)}
+                                    return
+
+                                choice = chunk.get("choices", [{}])[0]
+                                delta = choice.get("delta", {})
+                                finish_reason = choice.get("finish_reason")
+
+                                if finish_reason and finish_reason != "stop":
+                                    print(f"[AI Stream] finish_reason={finish_reason}", flush=True)
+
+                                # YIELD CONTENT, REASONING, AND TOOL CALLS
+                                result = {
+                                    "content": delta.get("content") or "",
+                                    "reasoning": delta.get("reasoning_content") or "",
                                 }
+                                if "tool_calls" in delta:
+                                    result["tool_calls"] = delta["tool_calls"]
+                                yield result
+                                line_count += 1
                             except json.JSONDecodeError:
                                 continue
+
+                    if line_count == 0:
+                        print("[AI Stream Warning] Stream returned 0 data chunks", flush=True)
                     return  # Success, exit retry loop
 
             except (httpx.HTTPStatusError, httpx.RequestError) as e:
@@ -194,13 +224,15 @@ class AIService:
         }
 
         try:
-            resp = await self._client.post(
-                f"{API_GATEWAY}/chat",
-                files=files,
-                data=data,
+            async with httpx.AsyncClient(
                 headers=COMMON_HEADERS,
-                timeout=30.0,
-            )
+                timeout=httpx.Timeout(30.0),
+            ) as client:
+                resp = await client.post(
+                    f"{API_GATEWAY}/chat",
+                    files=files,
+                    data=data,
+                )
 
             if resp.status_code != 200:
                 logger.error("Whisper HTTP %d: %s", resp.status_code, resp.text[:200])
@@ -263,6 +295,9 @@ class AIService:
         print(f"[AI] Injecting Student Context (User: {state.user_name}, Level: {state.education_level})", flush=True)
 
         current_messages = [{"role": "system", "content": full_system_prompt}] + list(messages)
+
+        total_chars = sum(len(str(m.get("content", ""))) for m in current_messages)
+        print(f"[AI] {len(current_messages)} messages, ~{total_chars} chars total", flush=True)
 
         _status("🧠 Thinking...")
         print("\n[AI] >>> Starting Agentic Loop (Streaming)", flush=True)

@@ -2,8 +2,6 @@ import flet as ft
 
 
 class AppColors:
-    # Premium Bluish Minimalist Palette
-    # Using Indigo/Royal Blue which is "absolutely beautiful"
     PRIMARY = "#4F46E5"  # Indigo 600
     SECONDARY = "#4338CA"  # Indigo 700
     TERTIARY = "#7C3AED"  # Violet (for gradients)
@@ -57,6 +55,59 @@ class AppStyles:
             blur=ft.Blur(blur_sigma, blur_sigma, ft.BlurTileMode.MIRROR),
             border=ft.Border.all(1, ft.Colors.with_opacity(0.05, ft.Colors.WHITE)),
             border_radius=AppStyles.RADIUS,
+        )
+
+    @staticmethod
+    def markdown_stylesheet() -> ft.MarkdownStyleSheet:
+        """Premium markdown styling for all AI content surfaces."""
+        return ft.MarkdownStyleSheet(
+            p_text_style=ft.TextStyle(size=15, height=1.6),
+            h1_text_style=ft.TextStyle(
+                size=24,
+                weight=ft.FontWeight.BOLD,
+                color=AppColors.PRIMARY,
+            ),
+            h2_text_style=ft.TextStyle(
+                size=20,
+                weight=ft.FontWeight.BOLD,
+                color=AppColors.PRIMARY,
+            ),
+            h3_text_style=ft.TextStyle(
+                size=17,
+                weight=ft.FontWeight.W_600,
+            ),
+            h4_text_style=ft.TextStyle(
+                size=15,
+                weight=ft.FontWeight.W_600,
+            ),
+            code_text_style=ft.TextStyle(
+                font_family="Courier New",
+                size=13,
+                bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.ON_SURFACE),
+            ),
+            a_text_style=ft.TextStyle(
+                color=AppColors.PRIMARY,
+                decoration=ft.TextDecoration.UNDERLINE,
+                weight=ft.FontWeight.W_500,
+            ),
+            blockquote_text_style=ft.TextStyle(
+                size=14,
+                italic=True,
+                color=ft.Colors.ON_SURFACE_VARIANT,
+            ),
+            list_bullet_text_style=ft.TextStyle(
+                size=15,
+                height=1.5,
+            ),
+            strong_text_style=ft.TextStyle(
+                weight=ft.FontWeight.BOLD,
+            ),
+            em_text_style=ft.TextStyle(
+                italic=True,
+            ),
+            horizontal_rule_decoration=ft.BoxDecoration(
+                border=ft.Border(bottom=ft.BorderSide(1, ft.Colors.with_opacity(0.12, ft.Colors.ON_SURFACE))),
+            ),
         )
 
     @staticmethod

@@ -183,7 +183,7 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
                 timer_text.color = AppColors.PRIMARY
             with contextlib.suppress(Exception):
                 timer_text.update()
-        
+
         if time_remaining <= 0 and timer_running["active"] and page.route == "/exam":
             timer_running["active"] = False
             page.run_task(_finalize_exam)

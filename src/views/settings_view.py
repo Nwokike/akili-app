@@ -1,5 +1,3 @@
-import contextlib
-
 import flet as ft
 
 from components.credit_dialog import show_credits_dialog
@@ -17,9 +15,7 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
         state.credit_text_controls = []
     state.credit_text_controls.append(credits_text)
 
-    # Available avatars
-    AVATARS = ["🦊", "🦁", "🐼", "🐨", "🐯", "🐸", "🐹", "🦄"]
-    selected_avatar_idx = state.avatar_index
+    # (Removed avatar selection)
 
     # --- Profile Inputs ---
     name_field = ft.TextField(
@@ -83,34 +79,7 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
         ],
     )
 
-    # --- Avatar Selector Row ---
-    avatar_row = ft.Row(spacing=10, scroll=ft.ScrollMode.AUTO)
-    avatar_containers = []
-
-    def select_avatar(idx):
-        nonlocal selected_avatar_idx
-        selected_avatar_idx = idx
-        for i, c in enumerate(avatar_containers):
-            c.border = ft.Border.all(3, AppColors.PRIMARY) if i == idx else ft.Border.all(1, ft.Colors.with_opacity(0.2, ft.Colors.ON_SURFACE))
-            c.bgcolor = ft.Colors.with_opacity(0.1, AppColors.PRIMARY) if i == idx else ft.Colors.TRANSPARENT
-        with contextlib.suppress(Exception):
-            avatar_row.update()
-
-    for index, emoji in enumerate(AVATARS):
-        is_sel = index == selected_avatar_idx
-        container = ft.Container(
-            content=ft.Text(emoji, size=24),
-            width=50,
-            height=50,
-            alignment=ft.Alignment.CENTER,
-            border_radius=25,
-            border=ft.Border.all(3, AppColors.PRIMARY) if is_sel else ft.Border.all(1, ft.Colors.with_opacity(0.2, ft.Colors.ON_SURFACE)),
-            bgcolor=ft.Colors.with_opacity(0.1, AppColors.PRIMARY) if is_sel else ft.Colors.TRANSPARENT,
-            animate=ft.Animation(150, ft.AnimationCurve.EASE_OUT),
-            on_click=lambda e, idx=index: select_avatar(idx),
-        )
-        avatar_containers.append(container)
-        avatar_row.controls.append(container)
+    # (Removed avatar row)
 
     # --- Save Handler ---
     async def _save_all(e):
@@ -133,7 +102,7 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
         state.user_name = name
         state.education_level = level
         state.country = country
-        state.avatar_index = selected_avatar_idx
+        state.avatar_index = 0
         state.search_region = region
         state.safesearch_level = safesearch
 
@@ -142,7 +111,7 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
             name=name,
             education_level=level,
             education_levels=state.education_levels,
-            avatar_index=selected_avatar_idx,
+            avatar_index=0,
             country=country,
             education_system="",
         )
@@ -292,9 +261,6 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
     # 1. Profile Config Section
     profile_content = ft.Column(
         [
-            ft.Text("Choose Avatar", size=12, weight=ft.FontWeight.W_500, color=AppColors.PRIMARY),
-            avatar_row,
-            ft.Container(height=4),
             name_field,
             class_field,
             country_dropdown,
@@ -348,7 +314,7 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
             btn.content.controls[0].color = AppColors.PRIMARY if is_sel else ft.Colors.ON_SURFACE_VARIANT
             btn.content.controls[1].color = AppColors.PRIMARY if is_sel else ft.Colors.ON_SURFACE
             btn.content.controls[1].weight = ft.FontWeight.W_600 if is_sel else ft.FontWeight.NORMAL
-            
+
         page.update()
 
     theme_selector = ft.Row(
