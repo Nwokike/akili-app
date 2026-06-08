@@ -498,6 +498,7 @@ def render_rich_content(
 ) -> list[ft.Control]:
     """Parse AI markdown and return a list of Flet controls rendering text and media inline in chronological order."""
     controls = []
+    is_dark = page.theme_mode == ft.ThemeMode.DARK
     
     current_pos = 0
     length = len(content)
@@ -517,7 +518,7 @@ def render_rich_content(
                             selectable=True,
                             extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
                             on_tap_link=((lambda e: page.run_task(on_tap_link, e.data)) if on_tap_link else None),
-                            md_style_sheet=AppStyles.markdown_stylesheet(),
+                            md_style_sheet=AppStyles.markdown_stylesheet(is_dark=is_dark),
                         )
                     )
             break
@@ -535,7 +536,7 @@ def render_rich_content(
                         selectable=True,
                         extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
                         on_tap_link=((lambda e: page.run_task(on_tap_link, e.data)) if on_tap_link else None),
-                        md_style_sheet=AppStyles.markdown_stylesheet(),
+                        md_style_sheet=AppStyles.markdown_stylesheet(is_dark=is_dark),
                     )
                 )
                 
@@ -552,7 +553,7 @@ def render_rich_content(
                         selectable=True,
                         extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
                         on_tap_link=((lambda e: page.run_task(on_tap_link, e.data)) if on_tap_link else None),
-                        md_style_sheet=AppStyles.markdown_stylesheet(),
+                        md_style_sheet=AppStyles.markdown_stylesheet(is_dark=is_dark),
                     )
                 )
         elif media_type == "video":
@@ -576,7 +577,7 @@ def render_rich_content(
                         selectable=True,
                         extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
                         on_tap_link=((lambda e: page.run_task(on_tap_link, e.data)) if on_tap_link else None),
-                        md_style_sheet=AppStyles.markdown_stylesheet(),
+                        md_style_sheet=AppStyles.markdown_stylesheet(is_dark=is_dark),
                     )
                 )
                 

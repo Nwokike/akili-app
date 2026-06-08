@@ -168,21 +168,7 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
             lesson_content.controls.append(ad_service.get_banner_ad())
         page.update()
 
-    async def _mark_complete(e):
-        # Warn if assignment is pending
-        existing = await db_manager.get_module_assignment(module["id"])
-        if existing and existing["status"] == "pending":
-            page.snack_bar = ft.SnackBar(
-                ft.Text("⚠️ You have a pending assignment for this module!"),
-                bgcolor=AppColors.ACCENT,
-            )
-            page.snack_bar.open = True
-            page.update()
-
-        await db_manager.complete_module(module["id"])
-        page.snack_bar = ft.SnackBar(ft.Text("✅ Module completed!"), bgcolor=AppColors.SUCCESS)
-        page.snack_bar.open = True
-        await navigate("/modules")
+    # Module completion is unlocked by passing the quiz (≥60%), not manually.
 
     # ── Notebook tip banner ───────────────────────────────────────
     notebook_tip = ft.Container(
@@ -228,33 +214,18 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
         padding=ft.Padding(8, 8, 16, 8),
     )
 
-    # ── Action Buttons (Minimalist) ───────────────────────────────
+    # ── Action Button ─────────────────────────────────────────────
     actions = ft.Container(
-        content=ft.Row(
-            [
-                ft.FilledButton(
-                    "Practice Quiz",
-                    icon=ft.Icons.QUIZ_ROUNDED,
-                    on_click=lambda e: page.run_task(navigate, "/quiz"),
-                    style=ft.ButtonStyle(
-                        bgcolor=AppColors.PRIMARY,
-                        color=ft.Colors.WHITE,
-                        shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
-                    ),
-                    expand=True,
-                ),
-                ft.OutlinedButton(
-                    "Mark as Done",
-                    icon=ft.Icons.DONE_ALL_ROUNDED,
-                    on_click=lambda e: page.run_task(_mark_complete),
-                    style=ft.ButtonStyle(
-                        color=AppColors.SUCCESS,
-                        shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
-                    ),
-                    expand=True,
-                ),
-            ],
-            spacing=12,
+        content=ft.FilledButton(
+            "Take Quiz",
+            icon=ft.Icons.QUIZ_ROUNDED,
+            on_click=lambda e: page.run_task(navigate, "/quiz"),
+            style=ft.ButtonStyle(
+                bgcolor=AppColors.PRIMARY,
+                color=ft.Colors.WHITE,
+                shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
+            ),
+            width=float("inf"),
         ),
         padding=ft.Padding(20, 12, 20, 20),
         bgcolor=ft.Colors.SURFACE,

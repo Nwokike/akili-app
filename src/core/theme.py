@@ -58,8 +58,20 @@ class AppStyles:
         )
 
     @staticmethod
-    def markdown_stylesheet() -> ft.MarkdownStyleSheet:
-        """Premium markdown styling for all AI content surfaces."""
+    def markdown_stylesheet(is_dark: bool = False) -> ft.MarkdownStyleSheet:
+        """Premium markdown styling for all AI content surfaces.
+
+        Args:
+            is_dark: Pass True when the app is in dark mode so blockquote /
+                     code-block backgrounds stay readable.
+        """
+        # Neutral ash tones that are always visible in each mode
+        blockquote_bg = "#1E1E1E" if is_dark else "#EFEFEF"
+        blockquote_border = "#444444" if is_dark else "#BDBDBD"
+        blockquote_text = "#CCCCCC" if is_dark else "#444444"
+        code_bg = "#2A2A2A" if is_dark else "#F0F0F0"
+        code_fg = "#E0E0E0" if is_dark else "#222222"
+
         return ft.MarkdownStyleSheet(
             p_text_style=ft.TextStyle(size=15, height=1.6),
             h1_text_style=ft.TextStyle(
@@ -83,7 +95,8 @@ class AppStyles:
             code_text_style=ft.TextStyle(
                 font_family="Courier New",
                 size=13,
-                bgcolor=ft.Colors.with_opacity(0.06, ft.Colors.ON_SURFACE),
+                color=code_fg,
+                bgcolor=code_bg,
             ),
             a_text_style=ft.TextStyle(
                 color=AppColors.PRIMARY,
@@ -93,7 +106,14 @@ class AppStyles:
             blockquote_text_style=ft.TextStyle(
                 size=14,
                 italic=True,
-                color=ft.Colors.ON_SURFACE_VARIANT,
+                color=blockquote_text,
+            ),
+            blockquote_decoration=ft.BoxDecoration(
+                bgcolor=blockquote_bg,
+                border_radius=ft.BorderRadius(0, 6, 6, 0),
+                border=ft.Border(
+                    left=ft.BorderSide(4, blockquote_border),
+                ),
             ),
             list_bullet_text_style=ft.TextStyle(
                 size=15,
