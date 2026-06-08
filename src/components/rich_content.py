@@ -407,6 +407,81 @@ def build_image_card(alt: str, url: str, page: ft.Page) -> ft.Container:
     )
 
 
+def _find_next_media(text: str, start_pos: int) -> tuple[int, int, str, dict] | None:
+    """Find the earliest media match in text starting from start_pos."""
+    matches = []
+    
+    # 1. Search for image
+    for m in _IMAGE_RE.finditer(text, start_pos):
+        matches.append((m.start(), m.end(), "image", {
+            "alt": m.group(1).strip(),
+            "url": m.group(2).strip()
+        }))
+        break
+        
+    # 2. Search for video links
+    for m in _VIDEO_LINK_RE.finditer(text, start_pos):
+        title, url = m.group(1), m.group(2)
+        if _is_video_url(url):
+            duration = ""
+            line_start = text.rfind("\n", 0, m.start()) + 1
+            line_end = text.find("\n", m.end())
+            if line_end == -1:
+                line_end = len(text)
+            line = text[line_start:line_end]
+            dm = _DURATION_RE.search(line)
+            if dm:
+                duration = dm.group(1)
+            matches.append((m.start(), m.end(), "video", {
+                "title": title.strip(),
+                "url": url.strip(),
+                "duration": duration,
+                "thumbnail": _get_youtube_thumbnail(url),
+            }))
+            break
+            
+    # 3. Search for HTML iframes
+    for m in _IFRAME_RE.finditer(text, start_pos):
+        url = m.group(1)
+        if _is_video_url(url):
+            iframe_tag = m.group(0)
+            title_match = _IFRAME_TITLE_RE.search(iframe_tag)
+            title = title_match.group(1).strip() if title_match else "Watch Tutorial"
+            duration = ""
+            line_start = text.rfind("\n", 0, m.start()) + 1
+            line_end = text.find("\n", m.end())
+            if line_end == -1:
+                line_end = len(text)
+            line = text[line_start:line_end]
+            dm = _DURATION_RE.search(line)
+            if dm:
+                duration = dm.group(1)
+            matches.append((m.start(), m.end(), "video", {
+                "title": title,
+                "url": url.strip(),
+                "duration": duration,
+                "thumbnail": _get_youtube_thumbnail(url),
+            }))
+            break
+            
+    # 4. Search for lesson videos
+    for m in _LESSON_VIDEO_RE.finditer(text, start_pos):
+        title, url = m.group(1), m.group(2)
+        matches.append((m.start(), m.end(), "video", {
+            "title": title.strip(),
+            "url": url.strip(),
+            "duration": "",
+            "thumbnail": _get_youtube_thumbnail(url),
+        }))
+        break
+
+    if not matches:
+        return None
+        
+    matches.sort(key=lambda x: x[0])
+    return matches[0]
+
+
 # ── Full content renderer ────────────────────────────────────────────────
 
 
@@ -418,48 +493,90 @@ def render_rich_content(
     show_images: bool = True,
     show_videos: bool = True,
 ) -> list[ft.Control]:
-    """Parse AI markdown and return a list of Flet controls: markdown + media cards.
-
-    This is the single entry point for rendering AI content anywhere in the app.
-    """
+    """Parse AI markdown and return a list of Flet controls rendering text and media inline in chronological order."""
     controls = []
-
-    # Extract media
-    videos = extract_video_links(content) if show_videos else []
-    images = extract_images(content) if show_images else []
-
-    # Preprocess markdown to render inline links in-place (no empty cells in tables)
-    clean = preprocess_markdown(content)
-
-    # Main markdown
-    md = ft.Markdown(
-        clean or "...",
-        selectable=True,
-        extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
-        on_tap_link=((lambda e: page.run_task(on_tap_link, e.data)) if on_tap_link else None),
-        md_style_sheet=AppStyles.markdown_stylesheet(),
-    )
-    controls.append(md)
-
-    # Image cards
-    if images:
-        controls.append(ft.Container(height=8))
-        for img in images:
-            controls.append(build_image_card(img["alt"], img["url"], page))
-
-    # Video cards
-    if videos:
-        controls.append(ft.Container(height=8))
-        for v in videos:
-            controls.append(
-                build_video_card(
-                    title=v["title"],
-                    url=v["url"],
-                    on_play=on_play_video,
-                    page=page,
-                    duration=v.get("duration", ""),
-                    thumbnail=v.get("thumbnail"),
+    
+    current_pos = 0
+    length = len(content)
+    
+    while current_pos < length:
+        match = _find_next_media(content, current_pos)
+        
+        if not match:
+            # No more media, render remaining text
+            remaining_text = content[current_pos:].strip()
+            if remaining_text:
+                clean_text = preprocess_markdown(remaining_text)
+                if clean_text:
+                    controls.append(
+                        ft.Markdown(
+                            clean_text,
+                            selectable=True,
+                            extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                            on_tap_link=((lambda e: page.run_task(on_tap_link, e.data)) if on_tap_link else None),
+                            md_style_sheet=AppStyles.markdown_stylesheet(),
+                        )
+                    )
+            break
+            
+        start_idx, end_idx, media_type, media_data = match
+        
+        # Render text segment preceding media
+        text_segment = content[current_pos:start_idx].strip()
+        if text_segment:
+            clean_text = preprocess_markdown(text_segment)
+            if clean_text:
+                controls.append(
+                    ft.Markdown(
+                        clean_text,
+                        selectable=True,
+                        extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                        on_tap_link=((lambda e: page.run_task(on_tap_link, e.data)) if on_tap_link else None),
+                        md_style_sheet=AppStyles.markdown_stylesheet(),
+                    )
                 )
-            )
-
+                
+        # Render media card or fallback link inline
+        if media_type == "image":
+            if show_images:
+                controls.append(build_image_card(media_data["alt"], media_data["url"], page))
+            else:
+                label = f"📷 View Image: {media_data['alt']}" if media_data['alt'] else "📷 View Image"
+                fallback_md = f"[{label}]({media_data['url']})"
+                controls.append(
+                    ft.Markdown(
+                        fallback_md,
+                        selectable=True,
+                        extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                        on_tap_link=((lambda e: page.run_task(on_tap_link, e.data)) if on_tap_link else None),
+                        md_style_sheet=AppStyles.markdown_stylesheet(),
+                    )
+                )
+        elif media_type == "video":
+            if show_videos:
+                controls.append(
+                    build_video_card(
+                        title=media_data["title"],
+                        url=media_data["url"],
+                        on_play=on_play_video,
+                        page=page,
+                        duration=media_data.get("duration", ""),
+                        thumbnail=media_data.get("thumbnail"),
+                    )
+                )
+            else:
+                label = f"🎬 Watch Video: {media_data['title']}" if media_data['title'] else "🎬 Watch Video"
+                fallback_md = f"[{label}]({media_data['url']})"
+                controls.append(
+                    ft.Markdown(
+                        fallback_md,
+                        selectable=True,
+                        extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                        on_tap_link=((lambda e: page.run_task(on_tap_link, e.data)) if on_tap_link else None),
+                        md_style_sheet=AppStyles.markdown_stylesheet(),
+                    )
+                )
+                
+        current_pos = end_idx
+        
     return controls

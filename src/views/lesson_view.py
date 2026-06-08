@@ -154,40 +154,15 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
         content = re.sub(r"\$\$(.*?)\$\$", r"\1", content, flags=re.DOTALL)
         content = re.sub(r"\$(.*?)\$", r"\1", content)
         lesson_content.controls.clear()
-
-        # Extract lesson-specific video format [VIDEO]: Title - URL
-        lesson_videos = extract_lesson_videos(content)
-        # Remove [VIDEO]: lines from content
-        clean_content = re.sub(
-            r"\[VIDEO\]:\s*(.*?)\s*-\s*(https?://(?:www\.)?youtube\.com/watch\?v=[\w-]+)",
-            "",
-            content,
-        )
-
-        # Render rich content (markdown + images + inline video links)
+        # Render rich content (markdown + images + inline video links, including [VIDEO]: cards inline)
         controls = render_rich_content(
-            content=clean_content,
+            content=content,
             page=page,
             on_play_video=_play_video,
             show_images=True,
             show_videos=True,
         )
         lesson_content.controls.extend(controls)
-
-        # Lesson-specific recommended videos
-        if lesson_videos:
-            lesson_content.controls.append(ft.Container(height=12))
-            lesson_content.controls.append(ft.Text("🎬 Recommended Tutorials", size=16, weight=ft.FontWeight.BOLD))
-            for v in lesson_videos:
-                lesson_content.controls.append(
-                    build_video_card(
-                        title=v["title"],
-                        url=v["url"],
-                        on_play=_play_video,
-                        page=page,
-                        thumbnail=v.get("thumbnail"),
-                    )
-                )
 
         if ad_service:
             lesson_content.controls.append(ad_service.get_banner_ad())
