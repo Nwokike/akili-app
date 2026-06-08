@@ -221,11 +221,21 @@ async def build_assignment_view(page: ft.Page, navigate) -> ft.View:
 
         # Evaluate via AI
         student_answers = [answers[qi] for qi in range(len(questions))]
-        evaluations = await evaluate_open_answers(
-            questions=questions,
-            student_answers=student_answers,
-            student_level=state.education_level or "Grade 10",
-        )
+        try:
+            evaluations = await evaluate_open_answers(
+                questions=questions,
+                student_answers=student_answers,
+                student_level=state.education_level or "Grade 10",
+            )
+        except Exception as e:
+            loading_col.visible = False
+            page.snack_bar = ft.SnackBar(
+                ft.Text(f"❌ Evaluation failed: {str(e)[:150]}", color=ft.Colors.WHITE),
+                bgcolor=ft.Colors.RED_800,
+            )
+            page.snack_bar.open = True
+            page.update()
+            return
 
         # Discard all image bytes — no bloat
         for qi in answers:

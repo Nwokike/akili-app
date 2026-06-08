@@ -1,3 +1,5 @@
+import contextlib
+
 import flet as ft
 
 
@@ -70,6 +72,19 @@ class AppState:
 
         return min(1.0, (self.xp_total - current_xp_threshold) / progress_range)
 
+    _on_online_change_listeners = []
+
+    def add_online_listener(self, listener):
+        if listener not in self._on_online_change_listeners:
+            self._on_online_change_listeners.append(listener)
+
+    def update_online_state(self, is_online: bool):
+        if self.is_online != is_online:
+            self.is_online = is_online
+            for listener in self._on_online_change_listeners:
+                with contextlib.suppress(Exception):
+                    listener(is_online)
+
 
 state = AppState()
 
@@ -78,10 +93,12 @@ async def check_internet_connection() -> bool:
     """Active, lightweight internet reachability verification to Akili API Gateway."""
     import httpx
 
+    from core.constants import API_GATEWAY
+
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:
             # Reaching gateway URL with short timeout is a true test of DNS + network access
-            await client.get("https://api.kiri.ng", follow_redirects=True)
+            await client.get(API_GATEWAY, follow_redirects=True)
             return True
     except Exception:
         return False

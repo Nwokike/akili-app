@@ -65,25 +65,29 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
         loading_ring.visible = True
         page.update()
         try:
-            prompt = f"Suggest 10 subjects suitable for a {state.education_level} student from {state.country}. Return ONLY a JSON array of strings."
+            try:
+                prompt = f"Suggest 10 subjects suitable for a {state.education_level} student from {state.country}. Return ONLY a JSON array of strings."
 
-            def val_subjects(text):
-                arr = extract_json_array(text)
-                if not arr:
-                    return None
-                subjects = validate_subject_list(arr)
-                return subjects if subjects else None
+                def val_subjects(text):
+                    arr = extract_json_array(text)
+                    if not arr:
+                        return None
+                    subjects = validate_subject_list(arr)
+                    return subjects if subjects else None
 
-            response = await ai_service.chat_with_healing(
-                messages=[{"role": "user", "content": prompt}],
-                validation_func=val_subjects,
-                system_prompt="Return ONLY valid JSON array of subject names. No markdown.",
-                use_tools=False,
-            )
-            subjects = response.get("parsed", [])
+                response = await ai_service.chat_with_healing(
+                    messages=[{"role": "user", "content": prompt}],
+                    validation_func=val_subjects,
+                    system_prompt="Return ONLY valid JSON array of subject names. No markdown.",
+                    use_tools=False,
+                )
+                parsed = response.get("parsed")
+            except Exception as ex:
+                parsed = None
+                response = {"content": str(ex)}
 
-            if isinstance(subjects, list) and subjects:
-                for subj in subjects[:10]:
+            if isinstance(parsed, list) and parsed:
+                for subj in parsed[:10]:
                     subj_str = str(subj)
                     text_ctrl = ft.Text(subj_str, size=14)
                     container = ft.Container(
@@ -107,8 +111,12 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
                 )
                 all_items.append({"name": "Other", "container": other_container, "text": other_text})
                 subject_list.controls.append(other_container)
-        except Exception:
-            pass
+            else:
+                from components.offline_retry import OfflineRetryWidget
+
+                err_msg = response.get("content", "Failed to load suggestions.") if response else "Failed to load suggestions."
+                body_container.content = OfflineRetryWidget(page, on_retry=_load_suggestions, message=f"Failed to load suggestions: {err_msg}")
+                page.update()
         finally:
             loading_ring.visible = False
             page.update()

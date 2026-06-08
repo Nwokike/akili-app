@@ -101,14 +101,19 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
                 f"notebook — you will need them for your quiz and assignment.'"
             )
 
-            response = await ai_service.chat(
-                messages=[{"role": "user", "content": prompt}],
-                system_prompt=f"You are Akili, a helpful AI tutor for {level} students.",
-                on_status=_update_status,
-            )
+            try:
+                response = await ai_service.chat(
+                    messages=[{"role": "user", "content": prompt}],
+                    system_prompt=f"You are Akili, a helpful AI tutor for {level} students.",
+                    on_status=_update_status,
+                )
+                content = response.get("content", "")
+                is_error = response.get("_error", False)
+            except Exception as ex:
+                content = str(ex)
+                is_error = True
 
-            content = response.get("content", "")
-            if content and not response.get("_error"):
+            if content and not is_error:
                 await db_manager.save_lesson(module["id"], content)
                 _render_lesson(content)
                 await gamification_service.award_xp("lesson_complete")
@@ -131,11 +136,19 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
                 except Exception as ex:
                     print(f"[Lesson] Assignment generation failed: {ex}")
             else:
-                error_text.value = "Failed to generate lesson"
-                error_text.visible = True
+                from components.offline_retry import OfflineRetryWidget
+
+                loading_indicator.visible = False
+                body_container.content = OfflineRetryWidget(page, on_retry=_generate_lesson, message=f"Lesson generation failed: {content[:150]}")
+                page.update()
+                return
         except Exception as ex:
-            error_text.value = f"Error: {str(ex)[:50]}"
-            error_text.visible = True
+            from components.offline_retry import OfflineRetryWidget
+
+            loading_indicator.visible = False
+            body_container.content = OfflineRetryWidget(page, on_retry=_generate_lesson, message=f"Lesson generation failed: {str(ex)[:150]}")
+            page.update()
+            return
         finally:
             loading_indicator.visible = False
             page.update()

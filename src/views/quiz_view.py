@@ -267,11 +267,17 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
             quiz_content.visible = False
             page.update()
 
-            evaluations = await evaluate_open_answers(
-                questions=open_qs,
-                student_answers=open_ans,
-                student_level=state.education_level or "Grade 10",
-            )
+            try:
+                evaluations = await evaluate_open_answers(
+                    questions=open_qs,
+                    student_answers=open_ans,
+                    student_level=state.education_level or "Grade 10",
+                )
+            except Exception as e:
+                loading_col.visible = False
+                body_container.content = OfflineRetryWidget(page, on_retry=_finalize_quiz, message=f"Evaluation failed: {str(e)[:150]}")
+                page.update()
+                return
 
             # Discard all image bytes now — no bloat
             for ans in open_ans:
@@ -434,20 +440,29 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
             valid = validate_mixed_questions(arr)
             return valid if valid else None
 
-        response = await ai_service.chat_with_healing(
-            messages=[{"role": "user", "content": prompt}],
-            validation_func=val_quiz,
-            system_prompt="Return ONLY valid JSON array of mixed question types. No markdown.",
-            use_tools=False,
-        )
-        parsed = response.get("parsed")
+        try:
+            response = await ai_service.chat_with_healing(
+                messages=[{"role": "user", "content": prompt}],
+                validation_func=val_quiz,
+                system_prompt="Return ONLY valid JSON array of mixed question types. No markdown.",
+                use_tools=False,
+            )
+            parsed = response.get("parsed")
+        except Exception as e:
+            parsed = None
+            response = {"content": str(e)}
+
         if parsed:
             questions.extend(parsed)
             loading_col.visible = False
             quiz_content.visible = True
             _render_question()
         else:
-            loading_col.controls[1].value = "⚠️ Failed to generate quiz."
+            loading_col.visible = False
+            from components.offline_retry import OfflineRetryWidget
+
+            err_msg = response.get("content", "Failed to generate quiz.") if response else "Failed to generate quiz."
+            body_container.content = OfflineRetryWidget(page, on_retry=_generate_quiz, message=f"Generation failed: {err_msg}")
             page.update()
 
     header = ft.Container(

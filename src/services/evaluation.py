@@ -119,6 +119,9 @@ async def evaluate_open_answers(
         on_status=on_status,
     )
 
+    if response.get("_error"):
+        raise Exception(response.get("content", "AI evaluation request failed."))
+
     parsed = response.get("parsed", [])
     if not parsed:
         # Fallback: give neutral scores

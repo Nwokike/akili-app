@@ -45,6 +45,17 @@ class FilePickerService:
             file = result[0]
             try:
                 data = file.bytes if file.bytes else _read_file_bytes(file.path)
+
+                # Check size limit (10MB)
+                if len(data) > 10 * 1024 * 1024:
+                    self.page.snack_bar = ft.SnackBar(
+                        content=ft.Text("❌ File too large. Maximum size allowed is 10MB.", color=ft.Colors.WHITE),
+                        bgcolor=ft.Colors.RED_800,
+                    )
+                    self.page.snack_bar.open = True
+                    self.page.update()
+                    return
+
                 mime_type = _detect_mime(file.name)
                 self.on_result(data, mime_type, file.name)
             except Exception as ex:
@@ -69,6 +80,17 @@ class FilePickerService:
         file = result[0]
         try:
             data = file.bytes if file.bytes else _read_file_bytes(file.path)
+
+            # Check size limit (10MB)
+            if len(data) > 10 * 1024 * 1024:
+                self.page.snack_bar = ft.SnackBar(
+                    content=ft.Text("❌ File too large. Maximum size allowed is 10MB.", color=ft.Colors.WHITE),
+                    bgcolor=ft.Colors.RED_800,
+                )
+                self.page.snack_bar.open = True
+                self.page.update()
+                return None
+
             mime_type = _detect_mime(file.name)
             return (data, mime_type)
         except Exception as ex:

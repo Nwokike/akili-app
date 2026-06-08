@@ -123,13 +123,22 @@ class AIService:
                             error_detail = resp.json()
                             logger.warning("AI Error (Attempt %d): %s", attempt + 1, json.dumps(error_detail))
                         except Exception:
+                            error_detail = {"error": resp.text[:300]}
                             logger.warning("AI Error Raw (Attempt %d): %s", attempt + 1, resp.text[:300])
+
+                        # Return client-side errors immediately without retrying
+                        if 400 <= resp.status_code < 500:
+                            return error_detail if "error" in error_detail else {"error": f"Request failed: {resp.status_code}"}
+
                         resp.raise_for_status()
 
                     return resp.json()
 
             except (httpx.HTTPStatusError, httpx.RequestError) as e:
                 logger.warning("AI Attempt %d Failed: %s", attempt + 1, e)
+                if isinstance(e, httpx.RequestError):
+                    state.update_online_state(False)
+
                 if attempt == max_retries - 1:
                     return {"error": f"Network overloaded after {max_retries} attempts. {str(e)}"}
 
@@ -160,7 +169,13 @@ class AIService:
                                 flush=True,
                             )
                         except Exception:
+                            error_detail = {"error": body.decode()[:300]}
                             print(f"\n[AI Stream Error Raw - Attempt {attempt + 1}] {body.decode()}", flush=True)
+
+                        # Yield client-side errors immediately without retrying
+                        if 400 <= response.status_code < 500:
+                            yield error_detail if "error" in error_detail else {"error": f"Request failed: {response.status_code}"}
+                            return
 
                         await asyncio.sleep(0.5)
                         response.raise_for_status()
@@ -178,30 +193,23 @@ class AIService:
                                 if "error" in chunk:
                                     error_msg = chunk["error"]
                                     if isinstance(error_msg, dict):
-                                        error_msg = error_msg.get("message", str(error_msg))
-                                    print(f"[AI Stream Error] {error_msg}", flush=True)
-                                    yield {"error": str(error_msg)}
+                                        yield {"error": error_msg.get("message", "Stream error")}
+                                    else:
+                                        yield {"error": str(error_msg)}
                                     return
 
                                 choices = chunk.get("choices", [])
-                                if not choices:
-                                    continue
-                                choice = choices[0]
-                                delta = choice.get("delta", {})
-                                finish_reason = choice.get("finish_reason")
-
-                                if finish_reason and finish_reason != "stop":
-                                    print(f"[AI Stream] finish_reason={finish_reason}", flush=True)
-
-                                # YIELD CONTENT, REASONING, AND TOOL CALLS
-                                result = {
-                                    "content": delta.get("content") or "",
-                                    "reasoning": delta.get("reasoning_content") or "",
-                                }
-                                if "tool_calls" in delta:
-                                    result["tool_calls"] = delta["tool_calls"]
-                                yield result
-                                line_count += 1
+                                if choices:
+                                    delta = choices[0].get("delta", {})
+                                    result = {}
+                                    if "reasoning_content" in delta:
+                                        result["reasoning"] = delta["reasoning_content"]
+                                    if "content" in delta:
+                                        result["content"] = delta["content"]
+                                    if "tool_calls" in delta:
+                                        result["tool_calls"] = delta["tool_calls"]
+                                    yield result
+                                    line_count += 1
                             except json.JSONDecodeError:
                                 continue
 
@@ -211,6 +219,9 @@ class AIService:
 
             except (httpx.HTTPStatusError, httpx.RequestError) as e:
                 print(f"[AI Stream Attempt {attempt + 1} Failed] {str(e)}", flush=True)
+                if isinstance(e, httpx.RequestError):
+                    state.update_online_state(False)
+
                 if attempt == max_retries - 1:
                     yield {"error": f"Network overloaded. {str(e)}"}
                     return

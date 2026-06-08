@@ -47,27 +47,30 @@ async def main(page: ft.Page):
     )
     page.banner = offline_banner
 
+    def on_online_change(is_online: bool):
+        if not is_online and not page.banner.open:
+            show_banner()
+        elif is_online and page.banner.open:
+            close_banner()
+
+    state.add_online_listener(on_online_change)
+
     async def handle_connectivity_change(e: ft.ConnectivityChangeEvent):
         # 'none' indicates no network connection
         is_offline = any(r.value == "none" for r in e.connectivity)
         if is_offline:
-            state.is_online = False
+            state.update_online_state(False)
         else:
-            state.is_online = await check_internet_connection()
-
-        if not state.is_online and not page.banner.open:
-            show_banner()
-        elif state.is_online and page.banner.open:
-            close_banner()
+            connected = await check_internet_connection()
+            state.update_online_state(connected)
 
     # Initialize Connectivity (Service, not a Control — no need to add to page)
     connectivity = ft.Connectivity()
     connectivity.on_change = handle_connectivity_change
 
     # Perform initial active connectivity verification
-    state.is_online = await check_internet_connection()
-    if not state.is_online:
-        show_banner()
+    initial_connected = await check_internet_connection()
+    state.update_online_state(initial_connected)
 
     # --- Service Initialization ---
     ad_service = AdService(page)

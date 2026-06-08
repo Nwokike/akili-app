@@ -87,6 +87,13 @@ def build_video_player_view(page: ft.Page, navigate) -> ft.View:
     # Safe fallback if native flet-video can't play it (like YouTube in some environments)
     def open_external(e):
         from components.rich_content import launch_url
+        from core.state import state
+
+        if not state.is_online:
+            page.snack_bar = ft.SnackBar(ft.Text("Cannot open link. You are offline."), bgcolor=ft.Colors.RED_800)
+            page.snack_bar.open = True
+            page.update()
+            return
 
         with contextlib.suppress(Exception):
             launch_url(page, video_url)
@@ -189,6 +196,12 @@ def build_video_player_view(page: ft.Page, navigate) -> ft.View:
 
     async def start_playback():
         logger.info("Playing video: %s", video_url)
+        from core.state import state
+
+        if not state.is_online:
+            show_error("No internet connection.")
+            return
+
         try:
             actual_url = video_url
             if "youtube.com" in video_url or "youtu.be" in video_url or "embed" in video_url.lower():

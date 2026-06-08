@@ -299,11 +299,18 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
             exam_content.visible = False
             page.update()
 
-            evaluations = await evaluate_open_answers(
-                questions=open_qs,
-                student_answers=open_ans,
-                student_level=state.education_level or "Grade 10",
-            )
+            try:
+                evaluations = await evaluate_open_answers(
+                    questions=open_qs,
+                    student_answers=open_ans,
+                    student_level=state.education_level or "Grade 10",
+                )
+            except Exception as e:
+                loading_col.visible = False
+                body_container.content = OfflineRetryWidget(page, on_retry=_finalize_exam, message=f"Evaluation failed: {str(e)[:150]}")
+                page.update()
+                return
+
             for ans in open_ans:
                 ans["image_bytes"] = None
             for ev in evaluations:
@@ -480,14 +487,19 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
             loading_col.controls[1].value = msg
             page.update()
 
-        response = await ai_service.chat_with_healing(
-            messages=[{"role": "user", "content": prompt}],
-            validation_func=val_exam,
-            system_prompt="Generate a rigorous mock exam with verified source material. Return ONLY valid JSON array.",
-            use_tools=True,
-            on_status=_update_status,
-        )
-        parsed = response.get("parsed")
+        try:
+            response = await ai_service.chat_with_healing(
+                messages=[{"role": "user", "content": prompt}],
+                validation_func=val_exam,
+                system_prompt="Generate a rigorous mock exam with verified source material. Return ONLY valid JSON array.",
+                use_tools=True,
+                on_status=_update_status,
+            )
+            parsed = response.get("parsed")
+        except Exception as e:
+            parsed = None
+            response = {"content": str(e)}
+
         if parsed:
             # Sort: objectives first, then open questions
             obj_qs = [q for q in parsed if q["type"] == QuestionType.OBJECTIVE]
@@ -500,7 +512,11 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
             _render_question()
             page.run_task(countdown_timer_task)
         else:
-            loading_col.controls[1].value = "⚠️ Generation failed."
+            loading_col.visible = False
+            from components.offline_retry import OfflineRetryWidget
+
+            err_msg = response.get("content", "Failed to generate exam.") if response else "Failed to generate exam."
+            body_container.content = OfflineRetryWidget(page, on_retry=_generate_exam, message=f"Generation failed: {err_msg}")
             page.update()
 
     header = ft.Container(

@@ -24,6 +24,6 @@ htmlcov/
 /temp/
 scratch/
 *.log
-score808.log
 storage/
 keys/
+release_notes.md
