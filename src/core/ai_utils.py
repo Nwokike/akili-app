@@ -42,11 +42,11 @@ def strip_thinking(text: str) -> str:
 # Pre-compiled regexes for lesson content sanitization
 _REASONING_LINE_RE = re.compile(
     r"^(?:"
-    r"💭.*"                               # thought-bubble lines
+    r"💭.*"  # thought-bubble lines
     r"|[*_]{0,2}(?:Now|Let's|Let us|We need|We have|We will|We can|We should|I will|I'll|I need|Note:|Note that)\b.*"  # planning starts
     r"|(?:Draft|Craft|Create|Generate|Write|Outline|Structure|Format)\s+(?:lesson|content|the|a|an)\b.*"  # instruction verbs
-    r"|(?:Word count|Aim for|Target|Ensure|Check)[:\s].*"                # meta-instructions
-    r"|Structure\s*:?\s*$"               # bare "Structure:" headings
+    r"|(?:Word count|Aim for|Target|Ensure|Check)[:\s].*"  # meta-instructions
+    r"|Structure\s*:?\s*$"  # bare "Structure:" headings
     r")$",
     re.IGNORECASE,
 )
@@ -54,8 +54,8 @@ _REASONING_LINE_RE = re.compile(
 # A leading block that is clearly a planning section before the real content starts
 _PLANNING_BLOCK_RE = re.compile(
     r"^\s*(?:💭[^\n]*\n|[*_]{0,2}(?:Now|Let's|We need|We have)[^\n]*\n)+"
-    r"(?:[^\n]*\n)*?"                   # any further planning lines
-    r"(?=#{1,3}\s|\*\*Learning Obj)",   # stop before first real heading
+    r"(?:[^\n]*\n)*?"  # any further planning lines
+    r"(?=#{1,3}\s|\*\*Learning Obj)",  # stop before first real heading
     re.IGNORECASE | re.MULTILINE,
 )
 

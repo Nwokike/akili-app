@@ -86,4 +86,3 @@ class OfflineRetryWidget(ft.Container):
         self.retry_btn.disabled = False
         self.loading_indicator.visible = False
         self.update()
-

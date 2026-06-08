@@ -11,7 +11,7 @@ import flet as ft
 
 from components.voice_input import VoiceInputHandler
 from core.ai_utils import extract_json_array, validate_mixed_questions
-from core.question_types import QUIZ_MIX, QuestionType, get_mix_prompt
+from core.question_types import DEFAULT_MARKS, QUIZ_MIX, QuestionType, get_mix_prompt
 from core.state import check_internet_connection, state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager
@@ -297,8 +297,9 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
     async def _show_results(evaluations: list):
         quiz_content.visible = False
         obj_count = sum(1 for q in questions if q["type"] == QuestionType.OBJECTIVE)
-        total_score = score["correct"] + score["open_earned"]
-        total_possible = obj_count + score["open_total"]
+        obj_weight = DEFAULT_MARKS[QuestionType.OBJECTIVE]
+        total_score = (score["correct"] * obj_weight) + score["open_earned"]
+        total_possible = (obj_count * obj_weight) + score["open_total"]
         pct = (total_score / total_possible * 100) if total_possible else 0
         passed = pct >= 50
 

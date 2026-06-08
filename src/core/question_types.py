@@ -21,7 +21,7 @@ class QuestionType:
 
 # Default marks per question type
 DEFAULT_MARKS = {
-    QuestionType.OBJECTIVE: 1,
+    QuestionType.OBJECTIVE: 3,
     QuestionType.THEORY: 10,
     QuestionType.SUBJECTIVE: 10,
 }
