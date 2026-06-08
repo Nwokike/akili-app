@@ -177,4 +177,3 @@ class AppTheme:
             font_family="Outfit",
             visual_density=ft.VisualDensity.COMFORTABLE,
         )
-
