@@ -5,6 +5,7 @@ import re
 import flet as ft
 
 from components.rich_content import render_rich_content
+from core.ai_utils import sanitize_lesson_content
 from core.state import check_internet_connection, state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager
@@ -106,10 +107,16 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
             try:
                 response = await ai_service.chat(
                     messages=[{"role": "user", "content": prompt}],
-                    system_prompt=f"You are Akili, a helpful AI tutor for {level} students.",
+                    system_prompt=(
+                        f"You are Akili, a helpful AI tutor for {level} students. "
+                        "Output ONLY the lesson content in clean markdown. "
+                        "Do NOT include any internal reasoning, planning notes, thought process, "
+                        "word-count targets, structural outlines, or meta-instructions. "
+                        "Begin directly with the lesson heading or learning objectives."
+                    ),
                     on_status=_update_status,
                 )
-                content = response.get("content", "")
+                content = sanitize_lesson_content(response.get("content", ""))
                 is_error = response.get("_error", False)
             except Exception as ex:
                 content = str(ex)

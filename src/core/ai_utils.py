@@ -39,6 +39,68 @@ def strip_thinking(text: str) -> str:
     return cleaned.strip()
 
 
+# Pre-compiled regexes for lesson content sanitization
+_REASONING_LINE_RE = re.compile(
+    r"^(?:"
+    r"💭.*"                               # thought-bubble lines
+    r"|[*_]{0,2}(?:Now|Let's|Let us|We need|We have|We will|We can|We should|I will|I'll|I need|Note:|Note that)\b.*"  # planning starts
+    r"|(?:Draft|Craft|Create|Generate|Write|Outline|Structure|Format)\s+(?:lesson|content|the|a|an)\b.*"  # instruction verbs
+    r"|(?:Word count|Aim for|Target|Ensure|Check)[:\s].*"                # meta-instructions
+    r"|Structure\s*:?\s*$"               # bare "Structure:" headings
+    r")$",
+    re.IGNORECASE,
+)
+
+# A leading block that is clearly a planning section before the real content starts
+_PLANNING_BLOCK_RE = re.compile(
+    r"^\s*(?:💭[^\n]*\n|[*_]{0,2}(?:Now|Let's|We need|We have)[^\n]*\n)+"
+    r"(?:[^\n]*\n)*?"                   # any further planning lines
+    r"(?=#{1,3}\s|\*\*Learning Obj)",   # stop before first real heading
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def sanitize_lesson_content(text: str) -> str:
+    """Strip AI internal reasoning / planning leakage from lesson output.
+
+    Removes:
+    - Lines starting with 💭 (thought-bubble internal monologue)
+    - Lines that are clearly planning/instruction text ("Now craft...",
+      "We need to ensure...", "Let's draft...", "Structure:", etc.)
+    - Leading planning blocks before the actual lesson starts
+
+    Preserves all real lesson content (headings, paragraphs, lists,
+    markdown formatting, video links, notebook checkpoints, etc.) unchanged.
+    """
+    if not text:
+        return text
+
+    # First strip any <think> blocks
+    text = strip_thinking(text)
+
+    # Remove leading planning block if present
+    text = _PLANNING_BLOCK_RE.sub("", text)
+
+    # Filter line-by-line for any remaining leaked reasoning lines
+    lines = text.splitlines()
+    clean_lines = []
+    for line in lines:
+        stripped = line.strip()
+        # Keep empty lines (preserve paragraph spacing)
+        if not stripped:
+            clean_lines.append(line)
+            continue
+        # Drop lines that match reasoning patterns
+        if _REASONING_LINE_RE.match(stripped):
+            logger.debug("[sanitize] Dropped reasoning line: %r", stripped[:80])
+            continue
+        clean_lines.append(line)
+
+    # Remove leading/trailing blank lines that might result from stripping
+    result = "\n".join(clean_lines).strip()
+    return result
+
+
 def extract_json(text: str) -> dict | list | None:
     """Multi-layer JSON extraction — never crashes, always returns parsed data or None.
 
