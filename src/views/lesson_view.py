@@ -5,7 +5,7 @@ import re
 import flet as ft
 
 from components.rich_content import render_rich_content
-from core.state import state
+from core.state import check_internet_connection, state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager
 from services.ai_service import ai_service
@@ -47,7 +47,9 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
 
         from components.offline_retry import OfflineRetryWidget
 
-        if not state.is_online:
+        is_connected = await check_internet_connection()
+        state.is_online = is_connected
+        if not is_connected:
             body_container.content = OfflineRetryWidget(
                 page,
                 on_retry=_generate_lesson,

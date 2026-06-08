@@ -12,7 +12,7 @@ import flet as ft
 from components.voice_input import VoiceInputHandler
 from core.ai_utils import extract_json_array, validate_mixed_questions
 from core.question_types import QUIZ_MIX, QuestionType, get_mix_prompt
-from core.state import state
+from core.state import check_internet_connection, state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager
 from services.ai_service import ai_service
@@ -256,7 +256,9 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         if open_qs:
             from components.offline_retry import OfflineRetryWidget
 
-            if not state.is_online:
+            is_connected = await check_internet_connection()
+            state.is_online = is_connected
+            if not is_connected:
                 body_container.content = OfflineRetryWidget(page, on_retry=_finalize_quiz, message="Akili needs an active internet connection to evaluate your answers.")
                 page.update()
                 return
@@ -393,7 +395,9 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
     async def _generate_quiz(e=None):
         from components.offline_retry import OfflineRetryWidget
 
-        if not state.is_online:
+        is_connected = await check_internet_connection()
+        state.is_online = is_connected
+        if not is_connected:
             body_container.content = OfflineRetryWidget(page, on_retry=_generate_quiz, message="Akili needs an active internet connection to generate your custom quiz.")
             page.update()
             return

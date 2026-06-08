@@ -5,7 +5,7 @@ import re
 import flet as ft
 
 from core.ai_utils import extract_json_array, extract_json_object, validate_curriculum, validate_subject_list
-from core.state import state
+from core.state import check_internet_connection, state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager
 from services.ai_service import ai_service
@@ -48,7 +48,9 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
     async def _load_suggestions():
         from components.offline_retry import OfflineRetryWidget
 
-        if not state.is_online:
+        is_connected = await check_internet_connection()
+        state.is_online = is_connected
+        if not is_connected:
             body_container.content = OfflineRetryWidget(
                 page,
                 on_retry=_load_suggestions,
@@ -124,7 +126,9 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
     async def _generate(e=None):
         from components.offline_retry import OfflineRetryWidget
 
-        if not state.is_online:
+        is_connected = await check_internet_connection()
+        state.is_online = is_connected
+        if not is_connected:
             body_container.content = OfflineRetryWidget(
                 page,
                 on_retry=lambda: _generate(e),

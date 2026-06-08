@@ -10,7 +10,7 @@ class OfflineRetryWidget(ft.Container):
     """A premium, reusable UI widget to display a beautiful offline connection recovery screen."""
 
     def __init__(self, page: ft.Page, on_retry, message: str = None):
-        self.page = page
+        self._page = page
         self.on_retry = on_retry
         self.message = message or "Akili needs an active internet connection to load or generate this section."
 
@@ -64,9 +64,10 @@ class OfflineRetryWidget(ft.Container):
         state.is_online = is_connected
 
         if is_connected:
-            # Clear offline banner
-            if self.page.banner and self.page.banner.open:
-                self.page.close_banner()
+            # Clear offline banner if open
+            if self._page.banner and self._page.banner.open:
+                self._page.banner.open = False
+                self._page.update()
 
             # Execute the retry callback
             if self.on_retry:
@@ -75,13 +76,14 @@ class OfflineRetryWidget(ft.Container):
                 else:
                     self.on_retry()
         else:
-            self.page.snack_bar = ft.SnackBar(
+            self._page.snack_bar = ft.SnackBar(
                 ft.Text("Still offline. Please check your Wi-Fi or mobile data.", color=ft.Colors.WHITE),
                 bgcolor=AppColors.ERROR,
             )
-            self.page.snack_bar.open = True
-            self.page.update()
+            self._page.snack_bar.open = True
+            self._page.update()
 
         self.retry_btn.disabled = False
         self.loading_indicator.visible = False
         self.update()
+

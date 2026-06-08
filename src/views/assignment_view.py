@@ -12,7 +12,7 @@ import flet as ft
 from components.voice_input import VoiceInputHandler
 from core.ai_utils import validate_mixed_questions
 from core.question_types import QuestionType
-from core.state import state
+from core.state import check_internet_connection, state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager
 from services.credit_service import credit_service
@@ -188,7 +188,9 @@ async def build_assignment_view(page: ft.Page, navigate) -> ft.View:
     async def _submit_assignment(e):
         from components.offline_retry import OfflineRetryWidget
 
-        if not state.is_online:
+        is_connected = await check_internet_connection()
+        state.is_online = is_connected
+        if not is_connected:
             body_container.content = OfflineRetryWidget(page, on_retry=lambda: _submit_assignment(e), message="Akili needs an active internet connection to submit and grade your assignment.")
             page.update()
             return
