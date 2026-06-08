@@ -29,7 +29,6 @@
 
 | Variant | Download | Size |
 |:--------|:--------:|:-----|
-| 📦 **Universal APK** | [**akili.apk**](https://github.com/Nwokike/akili-app/releases/latest/download/akili.apk) | All architectures |
 | 📱 **ARM64** (most phones) | [**akili-arm64-v8a.apk**](https://github.com/Nwokike/akili-app/releases/latest/download/akili-arm64-v8a.apk) | Modern 64-bit devices |
 | 📱 **ARMv7** (older phones) | [**akili-armeabi-v7a.apk**](https://github.com/Nwokike/akili-app/releases/latest/download/akili-armeabi-v7a.apk) | 32-bit ARM devices |
 | 💻 **x86_64** (emulators) | [**akili-x86_64.apk**](https://github.com/Nwokike/akili-app/releases/latest/download/akili-x86_64.apk) | Chromebooks & emulators |
