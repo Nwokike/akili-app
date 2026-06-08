@@ -170,7 +170,11 @@ async def build_course_detail_view(page: ft.Page, navigate) -> ft.View:
                                 weight=ft.FontWeight.W_600,
                                 color=ft.Colors.ON_SURFACE if not is_locked else ft.Colors.ON_SURFACE_VARIANT,
                             ),
-                            ft.Text(f"Module {i + 1}", size=12, color=ft.Colors.ON_SURFACE_VARIANT),
+                            ft.Text(
+                                f"Module {i + 1}" if not is_locked else f"Module {i + 1} · Pass the quiz (50%+) to unlock",
+                                size=12,
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                            ),
                         ],
                         spacing=2,
                         expand=True,

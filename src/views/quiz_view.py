@@ -300,7 +300,7 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         total_score = score["correct"] + score["open_earned"]
         total_possible = obj_count + score["open_total"]
         pct = (total_score / total_possible * 100) if total_possible else 0
-        passed = pct >= 60
+        passed = pct >= 50
 
         # Serialize answers for DB (text only, no bytes)
         answers_for_db = []
@@ -329,8 +329,30 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         result_controls = [
             ft.Container(height=20),
             ft.Icon(ft.Icons.AUTO_AWESOME_ROUNDED if passed else ft.Icons.ERROR_OUTLINE_ROUNDED, size=80, color=color),
-            ft.Text("Quiz Completed" if passed else "Keep Practicing", size=28, weight=ft.FontWeight.BOLD),
+            ft.Text("Quiz Passed! 🎉" if passed else "Keep Practicing", size=28, weight=ft.FontWeight.BOLD),
             ft.Text(f"Score: {total_score:.0f} / {total_possible:.0f} ({pct:.0f}%)", size=18, color=ft.Colors.ON_SURFACE_VARIANT),
+            ft.Container(
+                content=ft.Row(
+                    [
+                        ft.Icon(
+                            ft.Icons.LOCK_OPEN_ROUNDED if passed else ft.Icons.LOCK_ROUNDED,
+                            size=16,
+                            color=AppColors.SUCCESS if passed else ft.Colors.ON_SURFACE_VARIANT,
+                        ),
+                        ft.Text(
+                            "Next module unlocked!" if passed else "Score 50% or more to unlock the next module.",
+                            size=13,
+                            color=AppColors.SUCCESS if passed else ft.Colors.ON_SURFACE_VARIANT,
+                            weight=ft.FontWeight.W_500,
+                        ),
+                    ],
+                    spacing=6,
+                    alignment=ft.MainAxisAlignment.CENTER,
+                ),
+                padding=ft.Padding(16, 10, 16, 10),
+                border_radius=AppStyles.RADIUS_SMALL,
+                bgcolor=ft.Colors.with_opacity(0.08, AppColors.SUCCESS if passed else ft.Colors.ON_SURFACE),
+            ),
         ]
 
         # Show per-question feedback for open questions
@@ -346,7 +368,7 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
                             content=ft.Column(
                                 [
                                     ft.Text(f"Q{idx + 1}: {q['question'][:80]}...", size=13, weight=ft.FontWeight.W_600, max_lines=2),
-                                    ft.Text(f"Score: {ev.get('score', 0):.0f}/{ev.get('max_score', 10):.0f}", size=13, color=AppColors.SUCCESS if ev.get("score", 0) >= ev.get("max_score", 10) * 0.6 else AppColors.ERROR),
+                                    ft.Text(f"Score: {ev.get('score', 0):.0f}/{ev.get('max_score', 10):.0f}", size=13, color=AppColors.SUCCESS if ev.get("score", 0) >= ev.get("max_score", 10) * 0.5 else AppColors.ERROR),
                                     ft.Text(ev.get("feedback", ""), size=12, color=ft.Colors.ON_SURFACE_VARIANT),
                                 ],
                                 spacing=4,
@@ -488,6 +510,25 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         padding=ft.Padding(8, 8, 16, 8),
     )
 
+    unlock_hint = ft.Container(
+        content=ft.Row(
+            [
+                ft.Icon(ft.Icons.INFO_OUTLINE_ROUNDED, size=14, color=AppColors.PRIMARY),
+                ft.Text(
+                    "Score 50% or more to pass and unlock the next module.",
+                    size=12,
+                    color=AppColors.PRIMARY,
+                    expand=True,
+                ),
+            ],
+            spacing=6,
+        ),
+        padding=ft.Padding(16, 8, 16, 8),
+        bgcolor=ft.Colors.with_opacity(0.06, AppColors.PRIMARY),
+        border_radius=AppStyles.RADIUS_SMALL,
+        margin=ft.Margin(16, 0, 16, 0),
+    )
+
     quiz_content.controls = [
         ft.Container(
             content=ft.Column(
@@ -528,6 +569,7 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
                     content=ft.Column(
                         [
                             header,
+                            unlock_hint,
                             body_container,
                         ],
                         spacing=0,
