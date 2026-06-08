@@ -1,6 +1,6 @@
 [project]
 name = "akili"
-version = "1.0.0"
+version = "1.1.0"
 description = "After-School Learning App for Everyone"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -25,7 +25,7 @@ packages = ["src"]
 [tool.flet]
 org = "ng.kiri"
 product = "Akili"
-build_number = 1
+build_number = 2
 
 [tool.flet.app]
 path = "src"
