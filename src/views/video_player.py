@@ -87,6 +87,7 @@ def build_video_player_view(page: ft.Page, navigate) -> ft.View:
     # Safe fallback if native flet-video can't play it (like YouTube in some environments)
     def open_external(e):
         from components.rich_content import launch_url
+
         with contextlib.suppress(Exception):
             launch_url(page, video_url)
 
@@ -195,11 +196,12 @@ def build_video_player_view(page: ft.Page, navigate) -> ft.View:
                 status_text.update()
                 try:
                     from services.youtube_resolver import resolve_youtube_url
+
                     actual_url = await resolve_youtube_url(video_url)
                 except Exception:
                     logger.exception("Failed to resolve YouTube URL, falling back to original")
                     # Fallback to original URL so that external player can still launch
-            
+
             video.playlist = [fv.VideoMedia(actual_url)]
             video.update()
             await video.play()

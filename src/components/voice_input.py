@@ -1,10 +1,13 @@
 import asyncio
+import contextlib
 import logging
+
 import flet as ft
-from services.audio import AudioService
-from services.ai_service import ai_service
+
 from core.state import state
 from core.theme import AppColors
+from services.ai_service import ai_service
+from services.audio import AudioService
 
 logger = logging.getLogger(__name__)
 
@@ -57,10 +60,8 @@ class VoiceInputHandler:
     def set_enabled(self, enabled: bool):
         """Enable or disable the record button dynamically based on connection/state."""
         self.record_btn.disabled = not enabled
-        try:
+        with contextlib.suppress(Exception):
             self.record_btn.update()
-        except Exception:
-            pass
 
     async def _update_timer(self):
         while self.is_recording:
@@ -68,10 +69,8 @@ class VoiceInputHandler:
             if self.is_recording:
                 self.recording_time += 1
                 self.timer_text.value = f"00:{self.recording_time:02d} / 01:00"
-                try:
+                with contextlib.suppress(Exception):
                     self.timer_text.update()
-                except Exception:
-                    pass
 
     async def _handle_auto_stop(self, result):
         self.is_recording = False
@@ -130,9 +129,7 @@ class VoiceInputHandler:
             return
 
         if not self.is_recording:
-            started = await self.audio_service.start_recording(
-                on_auto_stop=lambda res: self.page.run_task(self._handle_auto_stop, res)
-            )
+            started = await self.audio_service.start_recording(on_auto_stop=lambda res: self.page.run_task(self._handle_auto_stop, res))
             if started:
                 self.is_recording = True
                 self.recording_time = 0

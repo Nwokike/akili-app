@@ -66,7 +66,7 @@ def _get_platform_info(url: str) -> tuple[str, str]:
 def extract_video_links(text: str) -> list[dict]:
     """Extract video links with metadata from markdown text, including raw iframes."""
     videos = []
-    
+
     # 1. Standard markdown video links
     matches = _VIDEO_LINK_RE.findall(text)
     for title, url in matches:
@@ -86,7 +86,7 @@ def extract_video_links(text: str) -> list[dict]:
                     "thumbnail": _get_youtube_thumbnail(url),
                 }
             )
-            
+
     # 2. Raw HTML iframes
     for match in _IFRAME_RE.finditer(text):
         url = match.group(1)
@@ -135,13 +135,16 @@ def extract_images(text: str) -> list[dict]:
 
 def launch_url(page: ft.Page, url: str):
     """Safely launch a URL asynchronously using ft.UrlLauncher."""
+
     async def launch():
         await ft.UrlLauncher().launch_url(url)
+
     page.run_task(launch)
 
 
 def preprocess_markdown(text: str) -> str:
     """Replace raw HTML iframes and markdown images with clean clickable links in-place."""
+
     # 1. Replace <iframe> tags with clean markdown links
     def replace_iframe(match):
         url = match.group(1)
@@ -150,21 +153,21 @@ def preprocess_markdown(text: str) -> str:
         title = title_match.group(1).strip() if title_match else ""
         label = f"🎬 Watch Video: {title}" if title else "🎬 Watch Video"
         return f"[{label}]({url})"
-        
+
     text = _IFRAME_RE.sub(replace_iframe, text)
-    
+
     # 2. Replace markdown images with cleaner clickable text links so they render inside tables/lists
     def replace_image(match):
         alt = match.group(1).strip()
         url = match.group(2).strip()
         label = f"📷 View Image: {alt}" if alt else "📷 View Image"
         return f"[{label}]({url})"
-        
+
     text = _IMAGE_RE.sub(replace_image, text)
-    
+
     # Remove [VIDEO]: lines
     text = _LESSON_VIDEO_RE.sub("", text)
-    
+
     # Clean up excessive blank lines
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
@@ -323,24 +326,26 @@ def build_image_card(alt: str, url: str, page: ft.Page) -> ft.Container:
             def close_dialog(e):
                 dialog.open = False
                 page.update()
-                
+
             dialog = ft.AlertDialog(
                 content=ft.Container(
-                    content=ft.Stack([
-                        ft.Image(
-                            src=url,
-                            fit=ft.BoxFit.CONTAIN,
-                            border_radius=12,
-                        ),
-                        ft.IconButton(
-                            icon=ft.Icons.CLOSE_ROUNDED,
-                            icon_color=ft.Colors.WHITE,
-                            bgcolor=ft.Colors.with_opacity(0.4, ft.Colors.BLACK),
-                            top=10,
-                            right=10,
-                            on_click=close_dialog,
-                        )
-                    ]),
+                    content=ft.Stack(
+                        [
+                            ft.Image(
+                                src=url,
+                                fit=ft.BoxFit.CONTAIN,
+                                border_radius=12,
+                            ),
+                            ft.IconButton(
+                                icon=ft.Icons.CLOSE_ROUNDED,
+                                icon_color=ft.Colors.WHITE,
+                                bgcolor=ft.Colors.with_opacity(0.4, ft.Colors.BLACK),
+                                top=10,
+                                right=10,
+                                on_click=close_dialog,
+                            ),
+                        ]
+                    ),
                     border_radius=12,
                     clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
                 ),
@@ -412,15 +417,12 @@ def build_image_card(alt: str, url: str, page: ft.Page) -> ft.Container:
 def _find_next_media(text: str, start_pos: int) -> tuple[int, int, str, dict] | None:
     """Find the earliest media match in text starting from start_pos."""
     matches = []
-    
+
     # 1. Search for image
     for m in _IMAGE_RE.finditer(text, start_pos):
-        matches.append((m.start(), m.end(), "image", {
-            "alt": m.group(1).strip(),
-            "url": m.group(2).strip()
-        }))
+        matches.append((m.start(), m.end(), "image", {"alt": m.group(1).strip(), "url": m.group(2).strip()}))
         break
-        
+
     # 2. Search for video links
     for m in _VIDEO_LINK_RE.finditer(text, start_pos):
         title, url = m.group(1), m.group(2)
@@ -434,14 +436,21 @@ def _find_next_media(text: str, start_pos: int) -> tuple[int, int, str, dict] | 
             dm = _DURATION_RE.search(line)
             if dm:
                 duration = dm.group(1)
-            matches.append((m.start(), m.end(), "video", {
-                "title": title.strip(),
-                "url": url.strip(),
-                "duration": duration,
-                "thumbnail": _get_youtube_thumbnail(url),
-            }))
+            matches.append(
+                (
+                    m.start(),
+                    m.end(),
+                    "video",
+                    {
+                        "title": title.strip(),
+                        "url": url.strip(),
+                        "duration": duration,
+                        "thumbnail": _get_youtube_thumbnail(url),
+                    },
+                )
+            )
             break
-            
+
     # 3. Search for HTML iframes
     for m in _IFRAME_RE.finditer(text, start_pos):
         url = m.group(1)
@@ -458,28 +467,42 @@ def _find_next_media(text: str, start_pos: int) -> tuple[int, int, str, dict] | 
             dm = _DURATION_RE.search(line)
             if dm:
                 duration = dm.group(1)
-            matches.append((m.start(), m.end(), "video", {
-                "title": title,
-                "url": url.strip(),
-                "duration": duration,
-                "thumbnail": _get_youtube_thumbnail(url),
-            }))
+            matches.append(
+                (
+                    m.start(),
+                    m.end(),
+                    "video",
+                    {
+                        "title": title,
+                        "url": url.strip(),
+                        "duration": duration,
+                        "thumbnail": _get_youtube_thumbnail(url),
+                    },
+                )
+            )
             break
-            
+
     # 4. Search for lesson videos
     for m in _LESSON_VIDEO_RE.finditer(text, start_pos):
         title, url = m.group(1), m.group(2)
-        matches.append((m.start(), m.end(), "video", {
-            "title": title.strip(),
-            "url": url.strip(),
-            "duration": "",
-            "thumbnail": _get_youtube_thumbnail(url),
-        }))
+        matches.append(
+            (
+                m.start(),
+                m.end(),
+                "video",
+                {
+                    "title": title.strip(),
+                    "url": url.strip(),
+                    "duration": "",
+                    "thumbnail": _get_youtube_thumbnail(url),
+                },
+            )
+        )
         break
 
     if not matches:
         return None
-        
+
     matches.sort(key=lambda x: x[0])
     return matches[0]
 
@@ -499,13 +522,13 @@ def render_rich_content(
     """Parse AI markdown and return a list of Flet controls rendering text and media inline in chronological order."""
     controls = []
     is_dark = page.theme_mode == ft.ThemeMode.DARK
-    
+
     current_pos = 0
     length = len(content)
-    
+
     while current_pos < length:
         match = _find_next_media(content, current_pos)
-        
+
         if not match:
             # No more media, render remaining text
             remaining_text = content[current_pos:].strip()
@@ -522,9 +545,9 @@ def render_rich_content(
                         )
                     )
             break
-            
+
         start_idx, end_idx, media_type, media_data = match
-        
+
         # Render text segment preceding media
         text_segment = content[current_pos:start_idx].strip()
         if text_segment:
@@ -539,13 +562,13 @@ def render_rich_content(
                         md_style_sheet=AppStyles.markdown_stylesheet(is_dark=is_dark),
                     )
                 )
-                
+
         # Render media card or fallback link inline
         if media_type == "image":
             if show_images:
                 controls.append(build_image_card(media_data["alt"], media_data["url"], page))
             else:
-                label = f"📷 View Image: {media_data['alt']}" if media_data['alt'] else "📷 View Image"
+                label = f"📷 View Image: {media_data['alt']}" if media_data["alt"] else "📷 View Image"
                 fallback_md = f"[{label}]({media_data['url']})"
                 controls.append(
                     ft.Markdown(
@@ -569,7 +592,7 @@ def render_rich_content(
                     )
                 )
             else:
-                label = f"🎬 Watch Video: {media_data['title']}" if media_data['title'] else "🎬 Watch Video"
+                label = f"🎬 Watch Video: {media_data['title']}" if media_data["title"] else "🎬 Watch Video"
                 fallback_md = f"[{label}]({media_data['url']})"
                 controls.append(
                     ft.Markdown(
@@ -580,10 +603,10 @@ def render_rich_content(
                         md_style_sheet=AppStyles.markdown_stylesheet(is_dark=is_dark),
                     )
                 )
-                
+
         current_pos = end_idx
-        
+
     if ad_service and len(controls) > 2:
         controls.insert(2, ad_service.get_banner_ad())
-        
+
     return controls

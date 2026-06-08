@@ -401,40 +401,28 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         if history:
             chat_messages.extend(history)
         _render_chat()
-        page.drawer.open = False
-        page.update()
+        await view.close_drawer()
 
     async def _new_chat_from_drawer(e):
-        page.drawer.open = False
-        page.update()
+        await view.close_drawer()
         await _new_conversation()
 
     async def _refresh_drawer_sessions():
         sessions = await db_manager.get_chat_sessions()
         sessions_col.controls.clear()
-        
+
         if not sessions:
-            sessions_col.controls.append(
-                ft.Container(
-                    content=ft.Text("No past chats found.", size=13, color=ft.Colors.ON_SURFACE_VARIANT),
-                    padding=ft.Padding(0, 20, 0, 0),
-                    alignment=ft.Alignment.CENTER
-                )
-            )
+            sessions_col.controls.append(ft.Container(content=ft.Text("No past chats found.", size=13, color=ft.Colors.ON_SURFACE_VARIANT), padding=ft.Padding(0, 20, 0, 0), alignment=ft.Alignment.CENTER))
             page.update()
             return
 
         for s in sessions:
             is_active = s["session_id"] == session_id["value"]
-            
+
             tile = ft.Container(
                 content=ft.Row(
                     [
-                        ft.Icon(
-                            ft.Icons.CHAT_BUBBLE_OUTLINE_ROUNDED,
-                            size=16,
-                            color=AppColors.PRIMARY if is_active else ft.Colors.ON_SURFACE_VARIANT
-                        ),
+                        ft.Icon(ft.Icons.CHAT_BUBBLE_OUTLINE_ROUNDED, size=16, color=AppColors.PRIMARY if is_active else ft.Colors.ON_SURFACE_VARIANT),
                         ft.Column(
                             [
                                 ft.Text(
@@ -445,11 +433,7 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
                                     max_lines=1,
                                     overflow=ft.TextOverflow.ELLIPSIS,
                                 ),
-                                ft.Text(
-                                    s["updated_at"][:16] if s["updated_at"] else "",
-                                    size=10,
-                                    color=ft.Colors.ON_SURFACE_VARIANT
-                                )
+                                ft.Text(s["updated_at"][:16] if s["updated_at"] else "", size=10, color=ft.Colors.ON_SURFACE_VARIANT),
                             ],
                             spacing=2,
                             expand=True,
@@ -460,7 +444,7 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
                             icon_color=ft.Colors.ERROR,
                             tooltip="Delete chat",
                             on_click=lambda e, sid=s["session_id"]: page.run_task(_on_delete_session, sid, e),
-                        )
+                        ),
                     ],
                     spacing=8,
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
@@ -471,7 +455,7 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
                 on_click=lambda e, sid=s["session_id"]: page.run_task(_on_select_session, sid),
             )
             sessions_col.controls.append(tile)
-        
+
         page.update()
 
     drawer = ft.NavigationDrawer(
@@ -511,18 +495,15 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
                 content=sessions_col,
                 padding=ft.Padding(16, 0, 16, 16),
                 expand=True,
-            )
+            ),
         ]
     )
 
     async def _close_drawer(e=None):
-        page.drawer.open = False
-        page.update()
+        await view.close_drawer()
 
     async def _open_drawer(e=None):
-        page.drawer = drawer
-        page.drawer.open = True
-        page.update()
+        await view.show_drawer()
         await _refresh_drawer_sessions()
 
     async def _new_conversation():
@@ -813,8 +794,9 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
 
     page.run_task(_load_session)
 
-    return ft.View(
+    view = ft.View(
         route="/tutor",
+        drawer=drawer,
         controls=[
             ft.SafeArea(
                 ft.Container(
@@ -847,3 +829,4 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         padding=0,
         spacing=0,
     )
+    return view

@@ -94,7 +94,7 @@ class AIService:
             slice_idx -= 1
 
         compacted_slice = messages[slice_idx:]
-        
+
         # Also truncate any large tool responses inside the kept slice to be safe.
         final_compacted = []
         for i, msg in enumerate(compacted_slice):
@@ -355,7 +355,7 @@ class AIService:
 
         for iteration in range(MAX_TOOL_ITERATIONS):
             print(f"[AI] Iteration {iteration + 1}/{MAX_TOOL_ITERATIONS}...", flush=True)
-            
+
             content_yielded = False
             is_tool_call = False
             tool_calls_buffer = {}
@@ -364,7 +364,7 @@ class AIService:
             for attempt in range(max_attempts):
                 temp = (0.3 if iteration > 0 else base_temperature) + (attempt * 0.1)
                 temp = min(1.0, temp)
-                
+
                 payload = {
                     "messages": current_messages,
                     "max_tokens": 4096,
@@ -417,7 +417,7 @@ class AIService:
                     break
 
                 except Exception as e:
-                    print(f"[AI Stream Error on iteration {iteration+1}, attempt {attempt+1}] {str(e)}", flush=True)
+                    print(f"[AI Stream Error on iteration {iteration + 1}, attempt {attempt + 1}] {str(e)}", flush=True)
                     if content_yielded:
                         yield f"\n\n⚠️ Stream error: {str(e)}"
                         return
@@ -594,14 +594,14 @@ class AIService:
                 temp = base_temp + (attempt * 0.1)
                 temp = min(1.0, temp)
                 payload["temperature"] = temp
-                
+
                 resp = await self._post_with_backoff(payload)
                 if "error" not in resp:
                     choices = resp.get("choices", [])
                     if choices:
                         break
-                
-                print(f"[AI Chat Error on iteration {iteration+1}, attempt {attempt+1}] Retrying with temperature {temp + 0.1:.1f}...", flush=True)
+
+                print(f"[AI Chat Error on iteration {iteration + 1}, attempt {attempt + 1}] Retrying with temperature {temp + 0.1:.1f}...", flush=True)
                 await asyncio.sleep(1.0)
 
             if "error" in resp:

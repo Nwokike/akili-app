@@ -9,6 +9,7 @@ import json
 
 import flet as ft
 
+from components.voice_input import VoiceInputHandler
 from core.ai_utils import extract_json_array, validate_mixed_questions
 from core.question_types import QUIZ_MIX, QuestionType, get_mix_prompt
 from core.state import state
@@ -18,7 +19,6 @@ from services.ai_service import ai_service
 from services.evaluation import evaluate_open_answers
 from services.file_picker import FilePickerService
 from services.share_service import ShareType, show_share_sheet
-from components.voice_input import VoiceInputHandler
 
 
 def build_quiz_view(page: ft.Page, navigate) -> ft.View:

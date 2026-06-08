@@ -607,9 +607,7 @@ class DatabaseManager:
 
     async def get_chat_sessions(self) -> list[dict]:
         db = await self._get_conn()
-        async with db.execute(
-            "SELECT session_id, messages_json, updated_at FROM chat_history ORDER BY updated_at DESC"
-        ) as cursor:
+        async with db.execute("SELECT session_id, messages_json, updated_at FROM chat_history ORDER BY updated_at DESC") as cursor:
             rows = await cursor.fetchall()
             sessions = []
             for r in rows:
@@ -624,11 +622,7 @@ class DatabaseManager:
                             content = content.split("[Voice Note Transcription]:")[-1]
                         snippet = content[:60].strip() + ("..." if len(content) > 60 else "")
                         break
-                sessions.append({
-                    "session_id": session_id,
-                    "snippet": snippet,
-                    "updated_at": updated_at
-                })
+                sessions.append({"session_id": session_id, "snippet": snippet, "updated_at": updated_at})
             return sessions
 
     async def delete_chat_session(self, session_id: str):
@@ -816,6 +810,29 @@ class DatabaseManager:
         db = await self._get_conn()
         await db.execute("DELETE FROM timetable WHERE id = ?", (entry_id,))
         await db.commit()
+
+    async def reset_database(self):
+        db = await self._get_conn()
+        # Temporarily disable foreign keys to avoid IntegrityError
+        await db.execute("PRAGMA foreign_keys=OFF;")
+        tables = [
+            "profile",
+            "courses",
+            "modules",
+            "quiz_attempts",
+            "assessments",
+            "assignments",
+            # "credits_log" is preserved to prevent users resetting to refill daily tokens
+            "gamification",
+            "chat_history",
+            "settings",
+            "timetable",
+        ]
+        for t in tables:
+            await db.execute(f"DELETE FROM {t}")
+        await db.commit()
+        # Re-enable foreign keys
+        await db.execute("PRAGMA foreign_keys=ON;")
 
     async def close(self):
         if self._conn:

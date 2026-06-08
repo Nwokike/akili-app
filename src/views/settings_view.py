@@ -146,8 +146,9 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
 
     # --- Clear Chats Action ---
     async def _handle_clear_chats(e):
-        async def do_clear():
+        async def do_clear(e=None):
             await db_manager.clear_all_chats()
+            _close_dialog(dialog)
             page.snack_bar = ft.SnackBar(ft.Text("Chat history cleared"), bgcolor=AppColors.SUCCESS)
             page.snack_bar.open = True
             page.update()
@@ -160,7 +161,7 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
                 ft.TextButton("Cancel", on_click=lambda e: _close_dialog(dialog)),
                 ft.FilledButton(
                     "Clear All",
-                    on_click=lambda e: page.run_task(do_clear) or _close_dialog(dialog),
+                    on_click=lambda e: page.run_task(do_clear),
                     style=ft.ButtonStyle(bgcolor=AppColors.ERROR, color=ft.Colors.WHITE),
                 ),
             ],
@@ -199,15 +200,8 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
                 overlay.open = False
         page.update()
 
-        await db_manager.close()
-        import os
-
-        db_path = db_manager.db_path
-        for f in [db_path, db_path + "-shm", db_path + "-wal"]:
-            if os.path.exists(f):
-                os.remove(f)
-        db_manager._conn = None
-        await db_manager.init_db()
+        # Reset database tables safely without file permission conflicts
+        await db_manager.reset_database()
 
         # Reset states
         state.user_name = ""

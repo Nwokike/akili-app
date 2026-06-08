@@ -163,6 +163,7 @@ class ImmersivePlayer(ft.Stack):
 
         def open_external(e):
             from components.rich_content import launch_url
+
             try:
                 launch_url(self.page, self.resource)
             except Exception as ex:
@@ -268,6 +269,7 @@ class ImmersivePlayer(ft.Stack):
                     self.update()
                     try:
                         from services.youtube_resolver import resolve_youtube_url
+
                         self.resolved_resource = await resolve_youtube_url(self.resource)
                     except Exception as ex:
                         logger.exception("Failed to resolve YouTube URL, falling back to original: %s", ex)
