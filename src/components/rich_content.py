@@ -302,6 +302,7 @@ def build_video_card(
             spacing=12,
             vertical_alignment=ft.CrossAxisAlignment.CENTER,
         ),
+        width=280,
         border_radius=12,
         border=ft.Border.all(1, ft.Colors.with_opacity(0.08, ft.Colors.ON_SURFACE)),
         bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
@@ -359,8 +360,8 @@ def build_image_card(alt: str, url: str, page: ft.Page) -> ft.Container:
                     content=ft.Image(
                         src=url,
                         fit=ft.BoxFit.COVER,
-                        width=float("inf"),
-                        height=180,
+                        width=280,
+                        height=140,
                         error_content=ft.Container(
                             content=ft.Column(
                                 [
@@ -398,6 +399,7 @@ def build_image_card(alt: str, url: str, page: ft.Page) -> ft.Container:
             spacing=0,
             tight=True,
         ),
+        width=280,
         border_radius=12,
         border=ft.Border.all(1, ft.Colors.with_opacity(0.08, ft.Colors.ON_SURFACE)),
         bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
