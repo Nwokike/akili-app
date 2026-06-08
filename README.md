@@ -9,26 +9,17 @@
 </p>
 
 <p align="center">
-  <a href="#download"><img src="https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android" /></a>
-  <a href="#download"><img src="https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows11&logoColor=white" alt="Windows" /></a>
-  <a href="#download"><img src="https://img.shields.io/badge/Web-4285F4?style=flat-square&logo=google-chrome&logoColor=white" alt="Web" /></a>
-  <br>
-  <img src="https://img.shields.io/badge/Powerby-AI-8E24AA?style=flat-square" alt="AI" />
+  <img src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android" />
+  <img src="https://img.shields.io/badge/Built%20with-Flet%200.85-00B0FF?style=for-the-badge&logo=flutter&logoColor=white" alt="Built with Flet" />
+  <img src="https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
 </p>
 
 ---
 
 ## Download
 
-| Platform | Download | Notes |
-|:--------:|:--------:|:------|
-| 🌐 **Web** | [**akili.kiri.ng**](https://akili.kiri.ng) | Works in any modern browser |
-| 🪟 **Windows** | [**Akili_Setup.exe**](https://github.com/Nwokike/akili-app/releases/latest/download/Akili_Setup.exe) | Windows 10/11 64-bit Installer |
-
-### Android
-
-| Variant | Download | Size |
-|:--------|:--------:|:-----|
+| Variant | Download | Notes |
+|:--------|:--------:|:------|
 | 📱 **ARM64** (most phones) | [**akili-arm64-v8a.apk**](https://github.com/Nwokike/akili-app/releases/latest/download/akili-arm64-v8a.apk) | Modern 64-bit devices |
 | 📱 **ARMv7** (older phones) | [**akili-armeabi-v7a.apk**](https://github.com/Nwokike/akili-app/releases/latest/download/akili-armeabi-v7a.apk) | 32-bit ARM devices |
 | 💻 **x86_64** (emulators) | [**akili-x86_64.apk**](https://github.com/Nwokike/akili-app/releases/latest/download/akili-x86_64.apk) | Chromebooks & emulators |
@@ -127,7 +118,7 @@
 - **Credit System** — 150 daily credits for AI actions. Practice quizzes are always free.
 - **Offline-First** — SQLite with WAL mode. Lessons cached locally after first generation.
 - **Dark Mode** — System-aware dark/light theme switching.
-- **Cross-Platform** — Works on Android, Windows, and Web with the same experience.
+- **Android-First** — Optimized for mobile with AdMob monetization.
 - **Voice Input** — Record voice notes; automatically transcribed and sent to your AI tutor.
 - **Image Analysis** — Upload photos of assignments; AI extracts and explains the content.
 
