@@ -21,11 +21,11 @@ def update_credit_displays():
 
 
 class CreditService:
-    async def refresh_credits(self):
+    async def refresh_credits(self, force: bool = False):
         """Check if day changed and reset credits. Load from DB."""
         today = date.today().isoformat()
 
-        if state.credits_date != today:
+        if force or state.credits_date != today:
             state.credits_date = today
             credits_used = await db_manager.get_credits_used_today()
             state.credits_remaining = max(0, DAILY_CREDITS - credits_used)

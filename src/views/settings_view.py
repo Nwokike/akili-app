@@ -209,7 +209,7 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
         state.education_levels = []
         state.is_onboarded = False
         state.xp_total = 0
-        state.credits_remaining = 150
+        await credit_service.refresh_credits(force=True)
         state.current_streak = 0
         state.best_streak = 0
         await navigate("/onboarding")
