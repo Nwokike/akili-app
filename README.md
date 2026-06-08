@@ -41,12 +41,12 @@
 
 ## Screenshots
 
-### Desktop Experience
+### Tablet & Widescreen Experience
 
 <p align="center">
   <img src="screenshots/home_desktop_dark.png" width="90%" alt="Home Dashboard with Courses" />
 </p>
-<p align="center"><em>Home Dashboard — view enrolled courses, progress, and quick-access to AI Tutor</em></p>
+<p align="center"><em>Home Dashboard — tablet-optimized view with enrolled courses, progress tracking, and quick AI Tutor access</em></p>
 
 <p align="center">
   <img src="screenshots/modules_desktop_dark.png" width="90%" alt="Course Modules View" />
@@ -115,7 +115,7 @@
 
 ## Features
 
-- **Credit System** — 150 daily credits for AI actions. Practice quizzes are always free.
+- **Credit System** — 100 daily credits for AI actions. Practice quizzes are always free.
 - **Offline-First** — SQLite with WAL mode. Lessons cached locally after first generation.
 - **Dark Mode** — System-aware dark/light theme switching.
 - **Android-First** — Optimized for mobile with AdMob monetization.
@@ -167,7 +167,7 @@
 | Tutor Question | 2 |
 | **Practice Quiz** | **FREE** |
 
-**150 credits/day** — resets at midnight. Always free to practice.
+**100 credits/day** — resets at midnight. Always free to practice.
 
 ---
 

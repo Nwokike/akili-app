@@ -157,7 +157,7 @@ class AppTheme:
                 on_surface_variant=AppColors.DARK_TEXT_DIM,
                 error=AppColors.ERROR,
             ),
-            font_family="Inter",
+            font_family="Outfit",
             visual_density=ft.VisualDensity.COMFORTABLE,
         )
 
@@ -174,6 +174,7 @@ class AppTheme:
                 on_surface_variant=AppColors.LIGHT_TEXT_DIM,
                 error=AppColors.ERROR,
             ),
-            font_family="Inter",
+            font_family="Outfit",
             visual_density=ft.VisualDensity.COMFORTABLE,
         )
+

@@ -26,7 +26,7 @@ class AITaskType:
     AUDIO = "audio"
 
 
-DAILY_CREDITS = 150
+DAILY_CREDITS = 100
 CREDIT_COSTS = {
     "course_create": 15,
     "lesson_gen": 5,

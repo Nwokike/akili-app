@@ -10,7 +10,7 @@ from services.credit_service import credit_service
 
 def build_settings_view(page: ft.Page, navigate) -> ft.View:
     ad_service = page.data.get("ad_service")
-    credits_text = ft.Text(f"{state.credits_remaining} / 150 Today", size=12, weight=ft.FontWeight.W_600)
+    credits_text = ft.Text(f"{state.credits_remaining} / 100 Today", size=12, weight=ft.FontWeight.W_600)
     if not hasattr(state, "credit_text_controls"):
         state.credit_text_controls = []
     state.credit_text_controls.append(credits_text)

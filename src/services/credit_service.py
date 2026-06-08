@@ -9,8 +9,8 @@ def update_credit_displays():
     active_controls = []
     for control in getattr(state, "credit_text_controls", []):
         try:
-            if "150" in getattr(control, "value", "") or "Today" in getattr(control, "value", ""):
-                control.value = f"{state.credits_remaining} / 150 Today"
+            if "100" in getattr(control, "value", "") or "Today" in getattr(control, "value", ""):
+                control.value = f"{state.credits_remaining} / 100 Today"
             else:
                 control.value = f"{state.credits_remaining}"
             control.update()

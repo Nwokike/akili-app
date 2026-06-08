@@ -135,7 +135,7 @@ def show_credits_dialog(page: ft.Page, credit_service, ad_service):
         ),
         ft.Container(height=6),
         ft.Text(
-            "Akili grants 150 free learning credits every 24 hours. Credits are spent when generating new course content, tutor chats, and assignment evaluations.",
+            "Akili grants 100 free learning credits every 24 hours. Credits are spent when generating new course content, tutor chats, and assignment evaluations.",
             size=11,
             color=ft.Colors.ON_SURFACE_VARIANT,
             text_align=ft.TextAlign.CENTER,
