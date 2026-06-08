@@ -19,6 +19,7 @@ from services.evaluation import evaluate_open_answers
 from services.file_picker import FilePickerService
 from services.gamification import gamification_service
 from services.share_service import ShareType, show_share_sheet
+from components.voice_input import VoiceInputHandler
 
 
 async def build_assignment_view(page: ft.Page, navigate) -> ft.View:
@@ -94,6 +95,9 @@ async def build_assignment_view(page: ft.Page, navigate) -> ft.View:
             disabled=is_graded or is_submitted,
         )
         answer_fields[qi] = field
+        voice_handler = VoiceInputHandler(page, field)
+        voice_handler.record_btn.visible = not (is_graded or is_submitted)
+        voice_handler.set_enabled(state.is_online)
 
         img_preview = ft.Container(visible=False)
         image_previews[qi] = img_preview
@@ -117,6 +121,7 @@ async def build_assignment_view(page: ft.Page, navigate) -> ft.View:
                     ),
                     ft.Text(q["question"], size=16, weight=ft.FontWeight.W_600),
                     field,
+                    voice_handler.status_indicator,
                     ft.Row(
                         [
                             ft.Container(expand=True, height=1, bgcolor=ft.Colors.OUTLINE_VARIANT),
@@ -127,12 +132,20 @@ async def build_assignment_view(page: ft.Page, navigate) -> ft.View:
                     )
                     if not (is_graded or is_submitted)
                     else ft.Container(),
-                    ft.OutlinedButton(
-                        "📷 Upload / Snap Answer",
-                        icon=ft.Icons.CAMERA_ALT_ROUNDED,
-                        on_click=lambda e, p=fp: page.run_task(p.pick_image),
-                        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS)),
-                        visible=not (is_graded or is_submitted),
+                    ft.Row(
+                        [
+                            ft.OutlinedButton(
+                                "📷 Upload / Snap Answer",
+                                icon=ft.Icons.CAMERA_ALT_ROUNDED,
+                                on_click=lambda e, p=fp: page.run_task(p.pick_image),
+                                style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS)),
+                                visible=not (is_graded or is_submitted),
+                            ),
+                            voice_handler.record_btn,
+                            voice_handler.timer_text,
+                        ],
+                        spacing=8,
+                        vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     ),
                     img_preview,
                 ],

@@ -18,6 +18,7 @@ from services.ai_service import ai_service
 from services.evaluation import evaluate_open_answers
 from services.file_picker import FilePickerService
 from services.share_service import ShareType, show_share_sheet
+from components.voice_input import VoiceInputHandler
 
 
 def build_quiz_view(page: ft.Page, navigate) -> ft.View:
@@ -38,7 +39,6 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
     options_col = ft.Column(spacing=10)
     feedback_text = ft.Text("", size=14, visible=False, weight=ft.FontWeight.W_500)
 
-    # Open answer input
     answer_field = ft.TextField(
         label="Type your answer here...",
         multiline=True,
@@ -50,6 +50,7 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         border_color=ft.Colors.TRANSPARENT,
         visible=False,
     )
+    voice_handler = VoiceInputHandler(page, answer_field)
     image_preview = ft.Container(visible=False)
     answer_image_data = {"bytes": None, "mime": None}
 
@@ -80,6 +81,16 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         on_click=lambda e: page.run_task(file_picker.pick_image),
         visible=False,
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS)),
+    )
+
+    upload_row = ft.Row(
+        [
+            upload_btn,
+            voice_handler.record_btn,
+            voice_handler.timer_text,
+        ],
+        spacing=8,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
     )
 
     or_divider = ft.Row(
@@ -194,6 +205,8 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         answer_field.visible = is_open
         or_divider.visible = is_open
         upload_btn.visible = is_open
+        voice_handler.record_btn.visible = is_open
+        voice_handler.set_enabled(state.is_online)
         image_preview.visible = False
 
         if qtype == QuestionType.OBJECTIVE:
@@ -469,8 +482,9 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         ),
         options_col,
         answer_field,
+        voice_handler.status_indicator,
         or_divider,
-        upload_btn,
+        upload_row,
         image_preview,
         ft.Container(height=8),
         feedback_text,

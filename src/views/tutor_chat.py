@@ -491,7 +491,7 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         ),
                         ft.Divider(height=16),
-                        ft.ElevatedButton(
+                        ft.FilledButton(
                             "New Conversation",
                             icon=ft.Icons.ADD_COMMENT_ROUNDED,
                             on_click=_new_chat_from_drawer,
