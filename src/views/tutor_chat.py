@@ -100,6 +100,12 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
                             on_click=lambda e: show_credits_dialog(page, credit_service, ad_service),
                         ),
                         ft.IconButton(
+                            icon=ft.Icons.HISTORY_ROUNDED,
+                            icon_size=20,
+                            tooltip="Chat history",
+                            on_click=lambda e: page.run_task(_open_drawer),
+                        ),
+                        ft.IconButton(
                             icon=ft.Icons.ADD_COMMENT_ROUNDED,
                             icon_size=20,
                             tooltip="New conversation",
@@ -203,6 +209,7 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
             page=page,
             on_play_video=_play_video,
             on_tap_link=_handle_link_tap,
+            ad_service=ad_service,
         )
 
         bubble = ft.Container(
@@ -375,6 +382,148 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
             page.snack_bar = ft.SnackBar(ft.Text(f"❌ {err_msg}"), bgcolor=AppColors.ERROR)
         page.snack_bar.open = True
         page.update()
+
+    sessions_col = ft.Column(spacing=4, scroll=ft.ScrollMode.AUTO)
+
+    async def _on_delete_session(session_id_to_del: str, e: ft.ControlEvent):
+        e.control.disabled = True
+        page.update()
+        await db_manager.delete_chat_session(session_id_to_del)
+        if session_id["value"] == session_id_to_del:
+            await _new_conversation()
+        else:
+            await _refresh_drawer_sessions()
+
+    async def _on_select_session(selected_id: str):
+        session_id["value"] = selected_id
+        chat_messages.clear()
+        history = await db_manager.get_chat(selected_id)
+        if history:
+            chat_messages.extend(history)
+        _render_chat()
+        page.drawer.open = False
+        page.update()
+
+    async def _new_chat_from_drawer(e):
+        page.drawer.open = False
+        page.update()
+        await _new_conversation()
+
+    async def _refresh_drawer_sessions():
+        sessions = await db_manager.get_chat_sessions()
+        sessions_col.controls.clear()
+        
+        if not sessions:
+            sessions_col.controls.append(
+                ft.Container(
+                    content=ft.Text("No past chats found.", size=13, color=ft.Colors.ON_SURFACE_VARIANT),
+                    padding=ft.Padding(0, 20, 0, 0),
+                    alignment=ft.Alignment.CENTER
+                )
+            )
+            page.update()
+            return
+
+        for s in sessions:
+            is_active = s["session_id"] == session_id["value"]
+            
+            tile = ft.Container(
+                content=ft.Row(
+                    [
+                        ft.Icon(
+                            ft.Icons.CHAT_BUBBLE_OUTLINE_ROUNDED,
+                            size=16,
+                            color=AppColors.PRIMARY if is_active else ft.Colors.ON_SURFACE_VARIANT
+                        ),
+                        ft.Column(
+                            [
+                                ft.Text(
+                                    s["snippet"] or "Conversation",
+                                    size=13,
+                                    weight=ft.FontWeight.W_600 if is_active else ft.FontWeight.NORMAL,
+                                    color=AppColors.PRIMARY if is_active else ft.Colors.ON_SURFACE,
+                                    max_lines=1,
+                                    overflow=ft.TextOverflow.ELLIPSIS,
+                                ),
+                                ft.Text(
+                                    s["updated_at"][:16] if s["updated_at"] else "",
+                                    size=10,
+                                    color=ft.Colors.ON_SURFACE_VARIANT
+                                )
+                            ],
+                            spacing=2,
+                            expand=True,
+                        ),
+                        ft.IconButton(
+                            icon=ft.Icons.DELETE_OUTLINE_ROUNDED,
+                            icon_size=16,
+                            icon_color=ft.Colors.ERROR,
+                            tooltip="Delete chat",
+                            on_click=lambda e, sid=s["session_id"]: page.run_task(_on_delete_session, sid, e),
+                        )
+                    ],
+                    spacing=8,
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                ),
+                padding=ft.Padding(8, 6, 4, 6),
+                border_radius=8,
+                bgcolor=ft.Colors.with_opacity(0.08, AppColors.PRIMARY) if is_active else ft.Colors.TRANSPARENT,
+                on_click=lambda e, sid=s["session_id"]: page.run_task(_on_select_session, sid),
+            )
+            sessions_col.controls.append(tile)
+        
+        page.update()
+
+    drawer = ft.NavigationDrawer(
+        controls=[
+            ft.Container(
+                content=ft.Column(
+                    [
+                        ft.Row(
+                            [
+                                ft.Text("Conversations", size=18, weight=ft.FontWeight.BOLD),
+                                ft.IconButton(
+                                    icon=ft.Icons.CLOSE_ROUNDED,
+                                    icon_size=20,
+                                    on_click=lambda e: page.run_task(_close_drawer),
+                                ),
+                            ],
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        ),
+                        ft.Divider(height=16),
+                        ft.ElevatedButton(
+                            "New Conversation",
+                            icon=ft.Icons.ADD_COMMENT_ROUNDED,
+                            on_click=_new_chat_from_drawer,
+                            style=ft.ButtonStyle(
+                                shape=ft.RoundedRectangleBorder(radius=8),
+                                bgcolor=AppColors.PRIMARY,
+                                color=ft.Colors.WHITE,
+                            ),
+                            width=200,
+                        ),
+                        ft.Container(height=8),
+                    ]
+                ),
+                padding=ft.Padding(16, 16, 16, 0),
+            ),
+            ft.Container(
+                content=sessions_col,
+                padding=ft.Padding(16, 0, 16, 16),
+                expand=True,
+            )
+        ]
+    )
+
+    async def _close_drawer(e=None):
+        page.drawer.open = False
+        page.update()
+
+    async def _open_drawer(e=None):
+        page.drawer = drawer
+        page.drawer.open = True
+        page.update()
+        await _refresh_drawer_sessions()
 
     async def _new_conversation():
         chat_messages.clear()

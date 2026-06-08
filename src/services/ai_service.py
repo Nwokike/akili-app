@@ -67,6 +67,46 @@ class AIService:
     def __init__(self):
         logger.info("Initializing AIService...")
 
+    def _compact_history(self, messages: list[dict], system_prompt: str) -> list[dict]:
+        """Compact the chat history to keep the AI within limits, respecting 5K context minimum."""
+        total_chars = len(system_prompt or "") + sum(len(str(m.get("content", "") or "")) for m in messages)
+        if total_chars <= 5000:
+            return messages
+
+        # We need to compact because we exceeded 5K context limit.
+        # Keep at least the last 10 messages (5 user turns, 5 assistant turns + tools).
+        keep_count = 10
+        if len(messages) <= keep_count:
+            # If history is short but still exceeds 5K, truncate large tool outputs to save context
+            compacted = []
+            for i, msg in enumerate(messages):
+                if msg.get("role") == "tool" and len(str(msg.get("content", ""))) > 1500 and i < len(messages) - 2:
+                    new_msg = msg.copy()
+                    new_msg["content"] = str(msg["content"])[:1500] + "\n... [Truncated for brevity]"
+                    compacted.append(new_msg)
+                else:
+                    compacted.append(msg)
+            return compacted
+
+        # Slice to keep only the last 10 messages, adjusting to not split tool/assistant calls.
+        slice_idx = len(messages) - keep_count
+        while slice_idx > 0 and (messages[slice_idx].get("role") == "tool" or (slice_idx > 0 and messages[slice_idx - 1].get("role") == "assistant" and messages[slice_idx - 1].get("tool_calls"))):
+            slice_idx -= 1
+
+        compacted_slice = messages[slice_idx:]
+        
+        # Also truncate any large tool responses inside the kept slice to be safe.
+        final_compacted = []
+        for i, msg in enumerate(compacted_slice):
+            if msg.get("role") == "tool" and len(str(msg.get("content", ""))) > 1500 and i < len(compacted_slice) - 2:
+                new_msg = msg.copy()
+                new_msg["content"] = str(msg["content"])[:1500] + "\n... [Truncated for brevity]"
+                final_compacted.append(new_msg)
+            else:
+                final_compacted.append(msg)
+
+        return final_compacted
+
     async def _post_with_backoff(self, payload: dict) -> dict:
         max_retries = 5
         base_delay = 2.0
@@ -143,7 +183,10 @@ class AIService:
                                     yield {"error": str(error_msg)}
                                     return
 
-                                choice = chunk.get("choices", [{}])[0]
+                                choices = chunk.get("choices", [])
+                                if not choices:
+                                    continue
+                                choice = choices[0]
                                 delta = choice.get("delta", {})
                                 finish_reason = choice.get("finish_reason")
 
@@ -213,7 +256,10 @@ class AIService:
         resp = await self._post_with_backoff(payload)
         if "error" in resp:
             raise Exception(resp["error"])
-        return resp.get("choices", [{}])[0].get("message", {}).get("content", "[Image analysis failed]")
+        choices = resp.get("choices", [])
+        if not choices:
+            return "[Image analysis failed: no choices returned]"
+        return choices[0].get("message", {}).get("content", "[Image analysis failed]")
 
     async def transcribe_audio(self, media_data: bytes, mime_type: str) -> str:
         """Send audio to Whisper via gateway for transcription."""
@@ -243,7 +289,9 @@ class AIService:
             # Whisper returns {"text": "..."}, chat completions return choices[]
             transcript = data_resp.get("text", "")
             if not transcript:
-                transcript = data_resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+                choices = data_resp.get("choices", [])
+                if choices:
+                    transcript = choices[0].get("message", {}).get("content", "")
 
             if transcript:
                 logger.info("Transcribed %d bytes audio → '%s'", len(media_data), transcript[:80])
@@ -292,9 +340,8 @@ class AIService:
         base_prompt = get_dynamic_system_prompt(user_name=state.user_name or "Student", education_level=state.education_level or "Grade 10")
         full_system_prompt = f"{base_prompt}\n\n[TASK INSTRUCTIONS]:\n{system_prompt}" if system_prompt else base_prompt
 
-        print(f"[AI] Injecting Student Context (User: {state.user_name}, Level: {state.education_level})", flush=True)
-
-        current_messages = [{"role": "system", "content": full_system_prompt}] + list(messages)
+        compacted_messages = self._compact_history(messages, full_system_prompt)
+        current_messages = [{"role": "system", "content": full_system_prompt}] + list(compacted_messages)
 
         total_chars = sum(len(str(m.get("content", ""))) for m in current_messages)
         print(f"[AI] {len(current_messages)} messages, ~{total_chars} chars total", flush=True)
@@ -303,51 +350,85 @@ class AIService:
         print("\n[AI] >>> Starting Agentic Loop (Streaming)", flush=True)
 
         MAX_TOOL_ITERATIONS = 25
+        base_temperature = 0.6
+        max_attempts = 3
 
         for iteration in range(MAX_TOOL_ITERATIONS):
             print(f"[AI] Iteration {iteration + 1}/{MAX_TOOL_ITERATIONS}...", flush=True)
-            payload = {
-                "messages": current_messages,
-                "max_tokens": 4096,
-                "temperature": 0.6,
-                "task_type": task_type,
-                "stream": True,
-                "tools": AKILI_TOOLS,
-                "tool_choice": "auto",
-            }
-
+            
+            content_yielded = False
             is_tool_call = False
             tool_calls_buffer = {}
-            content_yielded = False
+            stream_success = False
 
-            async for delta in self._stream_with_backoff(payload):
-                if "error" in delta:
-                    yield f"\n\n⚠️ {delta['error']}"
-                    return
+            for attempt in range(max_attempts):
+                temp = (0.3 if iteration > 0 else base_temperature) + (attempt * 0.1)
+                temp = min(1.0, temp)
+                
+                payload = {
+                    "messages": current_messages,
+                    "max_tokens": 4096,
+                    "temperature": temp,
+                    "task_type": task_type,
+                    "stream": True,
+                    "tools": AKILI_TOOLS,
+                    "tool_choice": "auto",
+                }
 
-                # Display reasoning in real-time
-                if delta.get("reasoning"):
-                    yield f"💭 *{delta['reasoning']}*"
+                is_tool_call = False
+                tool_calls_buffer = {}
+                content_yielded = False
+                stream_error = None
 
-                if delta.get("content") and delta["content"]:
-                    if not content_yielded:
-                        if not is_tool_call:
-                            _status("🧠 Synthesizing...")
-                        content_yielded = True
-                    yield delta["content"]
+                try:
+                    async for delta in self._stream_with_backoff(payload):
+                        if "error" in delta:
+                            stream_error = delta["error"]
+                            break
 
-                if "tool_calls" in delta:
-                    is_tool_call = True
-                    for tc in delta["tool_calls"]:
-                        idx = tc.get("index", 0)
-                        if idx not in tool_calls_buffer:
-                            tool_calls_buffer[idx] = {
-                                "id": tc.get("id"),
-                                "name": tc.get("function", {}).get("name", ""),
-                                "arguments": "",
-                            }
-                        if "function" in tc and "arguments" in tc["function"]:
-                            tool_calls_buffer[idx]["arguments"] += tc["function"]["arguments"]
+                        if delta.get("reasoning"):
+                            yield f"💭 *{delta['reasoning']}*"
+                            content_yielded = True
+
+                        if delta.get("content") and delta["content"]:
+                            if not content_yielded:
+                                if not is_tool_call:
+                                    _status("🧠 Synthesizing...")
+                                content_yielded = True
+                            yield delta["content"]
+
+                        if "tool_calls" in delta:
+                            is_tool_call = True
+                            for tc in delta["tool_calls"]:
+                                idx = tc.get("index", 0)
+                                if idx not in tool_calls_buffer:
+                                    tool_calls_buffer[idx] = {
+                                        "id": tc.get("id"),
+                                        "name": tc.get("function", {}).get("name", ""),
+                                        "arguments": "",
+                                    }
+                                if "function" in tc and "arguments" in tc["function"]:
+                                    tool_calls_buffer[idx]["arguments"] += tc["function"]["arguments"]
+
+                    if stream_error:
+                        raise Exception(stream_error)
+
+                    stream_success = True
+                    break
+
+                except Exception as e:
+                    print(f"[AI Stream Error on iteration {iteration+1}, attempt {attempt+1}] {str(e)}", flush=True)
+                    if content_yielded:
+                        yield f"\n\n⚠️ Stream error: {str(e)}"
+                        return
+                    if attempt == max_attempts - 1:
+                        yield "\n\n⚠️ Failed to connect to AI server. Please retry."
+                        return
+                    _status(f"⚠️ Connection issue. Retrying with temperature {temp + 0.1:.1f}...")
+                    await asyncio.sleep(1.0)
+
+            if not stream_success:
+                return
 
             if not is_tool_call:
                 print("[AI] <<< Loop Finished (No more tools requested).", flush=True)
@@ -462,9 +543,8 @@ class AIService:
         base_prompt = get_dynamic_system_prompt(user_name=state.user_name or "Student", education_level=state.education_level or "Grade 10")
         full_system_prompt = f"{base_prompt}\n\n[TASK INSTRUCTIONS]:\n{system_prompt}" if system_prompt else base_prompt
 
-        print(f"[AI] Injecting Student Context (User: {state.user_name}, Level: {state.education_level})", flush=True)
-
-        current_messages = [{"role": "system", "content": full_system_prompt}] + list(messages)
+        compacted_messages = self._compact_history(messages, full_system_prompt)
+        current_messages = [{"role": "system", "content": full_system_prompt}] + list(compacted_messages)
 
         if "search_query" in kwargs:
             current_messages.append({"role": "user", "content": f"[Background Research Hint]: {kwargs['search_query']}"})
@@ -478,6 +558,7 @@ class AIService:
 
         search_count = 0
         read_count = 0
+        max_attempts = 3
 
         for iteration in range(MAX_TOOL_ITERATIONS):
             print(f"[AI] Iteration {iteration + 1}/{MAX_TOOL_ITERATIONS}...", flush=True)
@@ -507,11 +588,30 @@ class AIService:
             if iteration > 0:
                 await asyncio.sleep(1.0)
 
-            resp = await self._post_with_backoff(payload)
+            base_temp = 0.3 if iteration > 0 else 0.6
+            resp = {}
+            for attempt in range(max_attempts):
+                temp = base_temp + (attempt * 0.1)
+                temp = min(1.0, temp)
+                payload["temperature"] = temp
+                
+                resp = await self._post_with_backoff(payload)
+                if "error" not in resp:
+                    choices = resp.get("choices", [])
+                    if choices:
+                        break
+                
+                print(f"[AI Chat Error on iteration {iteration+1}, attempt {attempt+1}] Retrying with temperature {temp + 0.1:.1f}...", flush=True)
+                await asyncio.sleep(1.0)
+
             if "error" in resp:
                 return {"role": "assistant", "content": f"⚠️ {resp['error']}", "_error": True}
 
-            choice = resp.get("choices", [{}])[0]
+            choices = resp.get("choices", [])
+            if not choices:
+                return {"role": "assistant", "content": "⚠️ Gateway returned empty choices list.", "_error": True}
+
+            choice = choices[0]
             message = choice.get("message", {})
             model_used = resp.get("_model_used", "unknown")
 

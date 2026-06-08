@@ -196,7 +196,7 @@ def build_video_player_view(page: ft.Page, navigate) -> ft.View:
                 try:
                     from services.youtube_resolver import resolve_youtube_url
                     actual_url = await resolve_youtube_url(video_url)
-                except Exception as ex:
+                except Exception:
                     logger.exception("Failed to resolve YouTube URL, falling back to original")
                     # Fallback to original URL so that external player can still launch
             

@@ -4,7 +4,7 @@ import re
 
 import flet as ft
 
-from components.rich_content import build_video_card, extract_lesson_videos, launch_url, render_rich_content
+from components.rich_content import render_rich_content
 from core.state import state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager

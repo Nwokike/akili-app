@@ -494,6 +494,7 @@ def render_rich_content(
     on_tap_link=None,
     show_images: bool = True,
     show_videos: bool = True,
+    ad_service=None,
 ) -> list[ft.Control]:
     """Parse AI markdown and return a list of Flet controls rendering text and media inline in chronological order."""
     controls = []
@@ -580,5 +581,8 @@ def render_rich_content(
                 )
                 
         current_pos = end_idx
+        
+    if ad_service and len(controls) > 2:
+        controls.insert(2, ad_service.get_banner_ad())
         
     return controls

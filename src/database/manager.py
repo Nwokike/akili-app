@@ -605,6 +605,37 @@ class DatabaseManager:
                 return json.loads(row[0])
         return []
 
+    async def get_chat_sessions(self) -> list[dict]:
+        db = await self._get_conn()
+        async with db.execute(
+            "SELECT session_id, messages_json, updated_at FROM chat_history ORDER BY updated_at DESC"
+        ) as cursor:
+            rows = await cursor.fetchall()
+            sessions = []
+            for r in rows:
+                session_id = r[0]
+                messages = json.loads(r[1]) if r[1] else []
+                updated_at = r[2]
+                snippet = "New Conversation"
+                for msg in messages:
+                    if msg.get("role") == "user" and msg.get("content"):
+                        content = msg["content"]
+                        if "[Voice Note Transcription]:" in content:
+                            content = content.split("[Voice Note Transcription]:")[-1]
+                        snippet = content[:60].strip() + ("..." if len(content) > 60 else "")
+                        break
+                sessions.append({
+                    "session_id": session_id,
+                    "snippet": snippet,
+                    "updated_at": updated_at
+                })
+            return sessions
+
+    async def delete_chat_session(self, session_id: str):
+        db = await self._get_conn()
+        await db.execute("DELETE FROM chat_history WHERE session_id = ?", (session_id,))
+        await db.commit()
+
     async def get_latest_chat_session(self) -> str:
         """Get or create a chat session ID."""
         db = await self._get_conn()
