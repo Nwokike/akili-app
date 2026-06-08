@@ -13,7 +13,7 @@ import flet as ft
 
 from components.credit_dialog import show_credits_dialog
 from components.media_preview import MediaPreviewBar
-from components.rich_content import render_rich_content
+from components.rich_content import launch_url, render_rich_content
 from core.constants import AITaskType
 from core.state import state
 from core.theme import AppColors, AppStyles
@@ -164,7 +164,7 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         return "\n".join(lines)
 
     async def _play_video(url: str, title: str):
-        """Navigate to the ImmersivePlayer."""
+        """Navigate to the ImmersivePlayer natively."""
         logger.info("Playing video: %s", title)
         page.data["playing_video_url"] = url
         page.data["playing_video_title"] = title
@@ -179,7 +179,7 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
         if _is_video_url(href):
             await _play_video(href, "Video")
         else:
-            await page.launch_url_async(href)
+            launch_url(page, href)
 
     def _build_user_bubble(text: str):
         """Beautiful user message bubble."""

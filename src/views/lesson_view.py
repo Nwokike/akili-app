@@ -4,7 +4,7 @@ import re
 
 import flet as ft
 
-from components.rich_content import build_video_card, extract_lesson_videos, render_rich_content
+from components.rich_content import build_video_card, extract_lesson_videos, launch_url, render_rich_content
 from core.state import state
 from core.theme import AppColors, AppStyles
 from database.manager import db_manager
@@ -141,7 +141,7 @@ async def build_lesson_view(page: ft.Page, navigate) -> ft.View:
             page.update()
 
     async def _play_video(url: str, title: str):
-        """Navigate to the ImmersivePlayer."""
+        """Navigate to the ImmersivePlayer natively."""
         logger.info("Playing lesson video: %s", title)
         page.data["playing_video_url"] = url
         page.data["playing_video_title"] = title

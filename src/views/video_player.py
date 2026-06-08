@@ -85,9 +85,10 @@ def build_video_player_view(page: ft.Page, navigate) -> ft.View:
     )
 
     # Safe fallback if native flet-video can't play it (like YouTube in some environments)
-    async def open_external(e):
+    def open_external(e):
+        from components.rich_content import launch_url
         with contextlib.suppress(Exception):
-            await page.launch_url_async(video_url)
+            launch_url(page, video_url)
 
     external_btn = ft.IconButton(
         icon=ft.Icons.OPEN_IN_NEW_ROUNDED,
@@ -187,11 +188,19 @@ def build_video_player_view(page: ft.Page, navigate) -> ft.View:
 
     async def start_playback():
         logger.info("Playing video: %s", video_url)
-        # Handle YouTube stream url extraction if needed (basic)
-        # Note: flet-video can stream YouTube if mpv with yt-dlp is set up on desktop,
-        # but otherwise it acts as raw stream player.
         try:
-            video.playlist = [fv.VideoMedia(video_url)]
+            actual_url = video_url
+            if "youtube.com" in video_url or "youtu.be" in video_url or "embed" in video_url.lower():
+                status_text.value = "Resolving YouTube stream..."
+                status_text.update()
+                try:
+                    from services.youtube_resolver import resolve_youtube_url
+                    actual_url = await resolve_youtube_url(video_url)
+                except Exception as ex:
+                    logger.exception("Failed to resolve YouTube URL, falling back to original")
+                    # Fallback to original URL so that external player can still launch
+            
+            video.playlist = [fv.VideoMedia(actual_url)]
             video.update()
             await video.play()
 

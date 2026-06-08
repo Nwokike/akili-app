@@ -27,6 +27,10 @@ _IMAGE_RE = re.compile(r"!\[([^\]]*)\]\((https?://[^\)]+)\)")
 # Lesson video format: [VIDEO]: Title - https://youtube.com/...
 _LESSON_VIDEO_RE = re.compile(r"\[VIDEO\]:\s*(.*?)\s*-\s*(https?://(?:www\.)?youtube\.com/watch\?v=[\w-]+)")
 
+# HTML iframe patterns for embedded videos
+_IFRAME_RE = re.compile(r"<iframe\b[^>]*src=[\"'](https?://[^\"']+)[\"'][^>]*>(?:</iframe>)?", re.IGNORECASE)
+_IFRAME_TITLE_RE = re.compile(r"title=[\"']([^\"']+)[\"']", re.IGNORECASE)
+
 # Duration patterns in text
 _DURATION_RE = re.compile(r"(\d+:\d+(?::\d+)?|\d+\s*min)")
 
@@ -38,7 +42,7 @@ def _is_video_url(url: str) -> bool:
 
 def _get_youtube_thumbnail(url: str) -> str | None:
     """Extract YouTube video ID and return high-quality thumbnail URL."""
-    match = re.search(r"(?:v=|youtu\.be/)([\w-]{11})", url)
+    match = re.search(r"(?:v=|youtu\.be/|embed/)([\w-]{11})", url)
     if match:
         return f"https://img.youtube.com/vi/{match.group(1)}/hqdefault.jpg"
     return None
@@ -60,12 +64,13 @@ def _get_platform_info(url: str) -> tuple[str, str]:
 
 
 def extract_video_links(text: str) -> list[dict]:
-    """Extract video links with metadata from markdown text."""
-    matches = _VIDEO_LINK_RE.findall(text)
+    """Extract video links with metadata from markdown text, including raw iframes."""
     videos = []
+    
+    # 1. Standard markdown video links
+    matches = _VIDEO_LINK_RE.findall(text)
     for title, url in matches:
         if _is_video_url(url):
-            # Try to find duration near this URL
             duration = ""
             for line in text.split("\n"):
                 if url in line or title in line:
@@ -81,6 +86,30 @@ def extract_video_links(text: str) -> list[dict]:
                     "thumbnail": _get_youtube_thumbnail(url),
                 }
             )
+            
+    # 2. Raw HTML iframes
+    for match in _IFRAME_RE.finditer(text):
+        url = match.group(1)
+        if _is_video_url(url):
+            iframe_tag = match.group(0)
+            title_match = _IFRAME_TITLE_RE.search(iframe_tag)
+            title = title_match.group(1).strip() if title_match else "Watch Tutorial"
+            duration = ""
+            for line in text.split("\n"):
+                if url in line or title in line:
+                    dm = _DURATION_RE.search(line)
+                    if dm:
+                        duration = dm.group(1)
+                        break
+            if not any(v["url"] == url for v in videos):
+                videos.append(
+                    {
+                        "title": title,
+                        "url": url.strip(),
+                        "duration": duration,
+                        "thumbnail": _get_youtube_thumbnail(url),
+                    }
+                )
     return videos
 
 
@@ -102,6 +131,43 @@ def extract_images(text: str) -> list[dict]:
     """Extract markdown images ![alt](url) from text."""
     matches = _IMAGE_RE.findall(text)
     return [{"alt": alt.strip(), "url": url.strip()} for alt, url in matches]
+
+
+def launch_url(page: ft.Page, url: str):
+    """Safely launch a URL asynchronously using ft.UrlLauncher."""
+    async def launch():
+        await ft.UrlLauncher().launch_url(url)
+    page.run_task(launch)
+
+
+def preprocess_markdown(text: str) -> str:
+    """Replace raw HTML iframes and markdown images with clean clickable links in-place."""
+    # 1. Replace <iframe> tags with clean markdown links
+    def replace_iframe(match):
+        url = match.group(1)
+        iframe_tag = match.group(0)
+        title_match = _IFRAME_TITLE_RE.search(iframe_tag)
+        title = title_match.group(1).strip() if title_match else ""
+        label = f"🎬 Watch Video: {title}" if title else "🎬 Watch Video"
+        return f"[{label}]({url})"
+        
+    text = _IFRAME_RE.sub(replace_iframe, text)
+    
+    # 2. Replace markdown images with cleaner clickable text links so they render inside tables/lists
+    def replace_image(match):
+        alt = match.group(1).strip()
+        url = match.group(2).strip()
+        label = f"📷 View Image: {alt}" if alt else "📷 View Image"
+        return f"[{label}]({url})"
+        
+    text = _IMAGE_RE.sub(replace_image, text)
+    
+    # Remove [VIDEO]: lines
+    text = _LESSON_VIDEO_RE.sub("", text)
+    
+    # Clean up excessive blank lines
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
 
 def strip_media_markdown(text: str) -> str:
@@ -248,13 +314,43 @@ def build_video_card(
 
 
 def build_image_card(alt: str, url: str, page: ft.Page) -> ft.Container:
-    """Beautiful image card with rounded corners, caption, and tap-to-open."""
+    """Beautiful image card with rounded corners, caption, and tap-to-open lightbox."""
 
-    async def _open_image(e):
+    def _open_image(e):
         try:
-            await page.launch_url_async(url)
+            # Native lightbox modal inside the app
+            def close_dialog(e):
+                dialog.open = False
+                page.update()
+                
+            dialog = ft.AlertDialog(
+                content=ft.Container(
+                    content=ft.Stack([
+                        ft.Image(
+                            src=url,
+                            fit=ft.BoxFit.CONTAIN,
+                            border_radius=12,
+                        ),
+                        ft.IconButton(
+                            icon=ft.Icons.CLOSE_ROUNDED,
+                            icon_color=ft.Colors.WHITE,
+                            bgcolor=ft.Colors.with_opacity(0.4, ft.Colors.BLACK),
+                            top=10,
+                            right=10,
+                            on_click=close_dialog,
+                        )
+                    ]),
+                    border_radius=12,
+                    clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
+                ),
+                bgcolor=ft.Colors.TRANSPARENT,
+                content_padding=0,
+            )
+            page.overlay.append(dialog)
+            dialog.open = True
+            page.update()
         except Exception as ex:
-            logger.warning("Failed to open image URL: %s", ex)
+            logger.warning("Failed to open lightbox: %s", ex)
 
     return ft.Container(
         content=ft.Column(
@@ -332,15 +428,15 @@ def render_rich_content(
     videos = extract_video_links(content) if show_videos else []
     images = extract_images(content) if show_images else []
 
-    # Clean markdown (remove image markdown — we render them natively)
-    clean = strip_media_markdown(content) if images else content
+    # Preprocess markdown to render inline links in-place (no empty cells in tables)
+    clean = preprocess_markdown(content)
 
     # Main markdown
     md = ft.Markdown(
         clean or "...",
         selectable=True,
         extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
-        on_tap_link=((lambda e: page.run_task(on_tap_link, e.href)) if on_tap_link else None),
+        on_tap_link=((lambda e: page.run_task(on_tap_link, e.data)) if on_tap_link else None),
         md_style_sheet=AppStyles.markdown_stylesheet(),
     )
     controls.append(md)

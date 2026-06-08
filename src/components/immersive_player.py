@@ -33,6 +33,7 @@ class ImmersivePlayer(ft.Stack):
     ):
         super().__init__()
         self.resource = resource
+        self.resolved_resource = None
         self.on_close = on_close
         self.title = title
         self.http_headers = http_headers or {}
@@ -160,6 +161,20 @@ class ImmersivePlayer(ft.Stack):
             overflow=ft.TextOverflow.ELLIPSIS,
         )
 
+        def open_external(e):
+            from components.rich_content import launch_url
+            try:
+                launch_url(self.page, self.resource)
+            except Exception as ex:
+                logger.warning("Failed to open external URL: %s", ex)
+
+        external_btn = ft.IconButton(
+            icon=ft.Icons.OPEN_IN_NEW_ROUNDED,
+            icon_color=ft.Colors.WHITE,
+            tooltip="Open in Browser",
+            on_click=open_external,
+        )
+
         return fv.AdaptiveVideoControls(
             # --- Mobile (touch) ---
             material=fv.MaterialVideoControls(
@@ -179,6 +194,7 @@ class ImmersivePlayer(ft.Stack):
                     back_btn,
                     title_text,
                     fv.VideoSpacer(),
+                    external_btn,
                     fv.VideoFullscreenButton(icon_color=ft.Colors.WHITE),
                 ],
                 bottom_button_bar=[
@@ -206,6 +222,7 @@ class ImmersivePlayer(ft.Stack):
                     back_btn,
                     title_text,
                     fv.VideoSpacer(),
+                    external_btn,
                     fv.VideoFullscreenButton(icon_color=ft.Colors.WHITE),
                 ],
                 bottom_button_bar=[
@@ -244,8 +261,19 @@ class ImmersivePlayer(ft.Stack):
             return
 
         try:
+            if not self.resolved_resource:
+                self.resolved_resource = self.resource
+                if "youtube.com" in self.resource or "youtu.be" in self.resource or "embed" in self.resource.lower() or "shorts" in self.resource.lower():
+                    self.status_text.value = "Resolving YouTube stream..."
+                    self.update()
+                    try:
+                        from services.youtube_resolver import resolve_youtube_url
+                        self.resolved_resource = await resolve_youtube_url(self.resource)
+                    except Exception as ex:
+                        logger.exception("Failed to resolve YouTube URL, falling back to original: %s", ex)
+
             self.video.playlist = [
-                fv.VideoMedia(self.resource, http_headers=self.http_headers),
+                fv.VideoMedia(self.resolved_resource, http_headers=self.http_headers),
             ]
             self.video.update()
             await self.video.play()
@@ -316,8 +344,9 @@ class ImmersivePlayer(ft.Stack):
             if self._is_closing:
                 return
             if self.video and not self._is_final_error:
+                resource_to_use = self.resolved_resource or self.resource
                 self.video.playlist = [
-                    fv.VideoMedia(self.resource, http_headers=self.http_headers),
+                    fv.VideoMedia(resource_to_use, http_headers=self.http_headers),
                 ]
                 await self.video.play()
                 self.overlay.visible = False
@@ -344,8 +373,9 @@ class ImmersivePlayer(ft.Stack):
             return
         try:
             if self.video:
+                resource_to_use = self.resolved_resource or self.resource
                 self.video.playlist = [
-                    fv.VideoMedia(self.resource, http_headers=self.http_headers),
+                    fv.VideoMedia(resource_to_use, http_headers=self.http_headers),
                 ]
                 self.overlay.visible = False
                 self.update()

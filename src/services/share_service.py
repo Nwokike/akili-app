@@ -12,6 +12,7 @@ import urllib.parse
 
 import flet as ft
 
+from components.rich_content import launch_url
 from core.constants import APP_FULL_NAME, APP_TAGLINE, PLAYSTORE_URL, SHARE_HASHTAG
 from core.state import state
 from core.theme import AppColors
@@ -279,14 +280,11 @@ def show_share_sheet(page: ft.Page, share_type: str, data: dict):
 
     def _share_whatsapp(e):
         encoded = urllib.parse.quote(share_text)
-        page.run_task(page.launch_url_async, f"https://wa.me/?text={encoded}")
+        launch_url(page, f"https://wa.me/?text={encoded}")
 
     def _share_generic(e):
         encoded = urllib.parse.quote(share_text)
-        page.run_task(
-            page.launch_url_async,
-            f"https://www.facebook.com/sharer/sharer.php?quote={encoded}",
-        )
+        launch_url(page, f"https://www.facebook.com/sharer/sharer.php?quote={encoded}")
 
     def _close_sheet():
         sheet.open = False
