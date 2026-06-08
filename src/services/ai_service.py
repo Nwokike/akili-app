@@ -135,6 +135,7 @@ class AIService:
                     return resp.json()
 
             except (httpx.HTTPStatusError, httpx.RequestError) as e:
+                print(f"[AI Attempt {attempt + 1} Failed] {str(e)}", flush=True)
                 logger.warning("AI Attempt %d Failed: %s", attempt + 1, e)
                 if isinstance(e, httpx.RequestError):
                     state.update_online_state(False)
@@ -143,6 +144,7 @@ class AIService:
                     return {"error": f"Network overloaded after {max_retries} attempts. {str(e)}"}
 
                 delay = min(30.0, (base_delay**attempt) + random.uniform(0.5, 2.0))
+                print(f"[AI Retry] Retrying in {delay:.1f}s...", flush=True)
                 logger.info("Retrying in %.1fs...", delay)
                 await asyncio.sleep(delay)
 
