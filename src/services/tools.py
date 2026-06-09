@@ -9,9 +9,21 @@ functions use asyncio.to_thread() to avoid blocking the Flet event loop.
 
 import asyncio
 import logging
+import traceback
 from datetime import datetime
 
-from ddgs import DDGS
+try:
+    print("[DIAGNOSTICS] primp imported successfully!", flush=True)
+except Exception:
+    print("[DIAGNOSTICS] primp import failed!", flush=True)
+    traceback.print_exc()
+
+try:
+    from ddgs import DDGS
+    print("[DIAGNOSTICS] DDGS imported successfully!", flush=True)
+except Exception:
+    print("[DIAGNOSTICS] DDGS import failed!", flush=True)
+    traceback.print_exc()
 
 from core.state import state
 
@@ -50,6 +62,7 @@ async def search_web(query: str, max_results: int = 8) -> list[dict]:
         logger.info("Found %d web results", len(clean))
         return clean
     except Exception as e:
+        traceback.print_exc()
         logger.error("search_web error: %s", e)
         return [{"error": f"Search failed: {e}"}]
 
@@ -82,6 +95,7 @@ async def search_images(query: str, max_results: int = 6) -> list[dict]:
         logger.info("Found %d images", len(clean))
         return clean
     except Exception as e:
+        traceback.print_exc()
         logger.error("search_images error: %s", e)
         return [{"error": f"Image search failed: {e}"}]
 
@@ -114,6 +128,7 @@ async def search_news(query: str, max_results: int = 6) -> list[dict]:
         logger.info("Found %d news articles", len(clean))
         return clean
     except Exception as e:
+        traceback.print_exc()
         logger.error("search_news error: %s", e)
         return [{"error": f"News search failed: {e}"}]
 
@@ -147,6 +162,7 @@ async def search_videos(query: str, max_results: int = 5) -> list[dict]:
         logger.info("Found %d videos", len(clean))
         return clean
     except Exception as e:
+        traceback.print_exc()
         logger.error("search_videos error: %s", e)
         return [{"error": f"Video search failed: {e}"}]
 
@@ -177,6 +193,7 @@ async def search_books(query: str, max_results: int = 5) -> list[dict]:
         logger.info("Found %d books", len(clean))
         return clean
     except Exception as e:
+        traceback.print_exc()
         logger.error("search_books error: %s", e)
         return [{"error": f"Book search failed: {e}"}]
 
@@ -200,6 +217,7 @@ async def read_page(url: str) -> dict:
         logger.info("Extracted %d chars from %s", len(content), url)
         return {"url": url, "content": content}
     except Exception as e:
+        traceback.print_exc()
         logger.error("read_page error: %s", e)
         return {"error": f"Extract failed: {e}"}
 
