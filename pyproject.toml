@@ -3,7 +3,7 @@ name = "akili"
 version = "1.1.0"
 description = "After-School Learning App for Everyone"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 dependencies = [
     "aiosqlite>=0.22.1",
     "ddgs>=9.14.4",
@@ -60,7 +60,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 250
-target-version = "py313"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "C4", "UP", "SIM"]

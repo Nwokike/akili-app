@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://play.google.com/store/apps/details?id=ng.kiri.akili"><img src="https://img.shields.io/badge/Google_Play-Android-3DDC84?style=for-the-badge&logo=google-play&logoColor=white" alt="Google Play Store" /></a>
   <img src="https://img.shields.io/badge/Built%20with-Flet%200.85-00B0FF?style=for-the-badge&logo=flutter&logoColor=white" alt="Built with Flet" />
-  <img src="https://img.shields.io/badge/Python-3.13-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
 </p>
 
 ---
