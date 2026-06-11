@@ -1,4 +1,10 @@
 import flet as ft
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
 
 from core.state import check_internet_connection, state
 from core.theme import AppTheme
