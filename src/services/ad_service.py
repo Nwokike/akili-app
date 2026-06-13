@@ -24,6 +24,8 @@ class AdService:
         self._on_interstitial_close = None
 
     def _is_mobile(self) -> bool:
+        if self.page.web:
+            return False
         if not HAS_ADS:
             return False
         try:
@@ -95,6 +97,39 @@ class AdService:
                 return self._create_ad_container(ad, width=width)
             except Exception:
                 pass
+
+        if self.page.web:
+            from core.theme import AppColors, AppStyles
+
+            def on_hover(e):
+                e.control.bgcolor = ft.Colors.with_opacity(0.08, ft.Colors.ON_SURFACE) if e.data == "true" else ft.Colors.with_opacity(0.04, ft.Colors.ON_SURFACE)
+                e.control.update()
+
+            return ft.Container(
+                content=ft.Row(
+                    [
+                        ft.Icon(ft.Icons.ANDROID_ROUNDED, color=AppColors.PRIMARY, size=20),
+                        ft.Text(
+                            "Akili Web Preview — Click to get the Android App",
+                            size=12,
+                            weight=ft.FontWeight.W_600,
+                            color=ft.Colors.ON_SURFACE,
+                        ),
+                    ],
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    spacing=8,
+                ),
+                height=height,
+                bgcolor=ft.Colors.with_opacity(0.04, ft.Colors.ON_SURFACE),
+                border=ft.Border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.ON_SURFACE)),
+                border_radius=AppStyles.RADIUS,
+                padding=ft.padding.symmetric(vertical=4, horizontal=12),
+                alignment=ft.Alignment.CENTER,
+                margin=ft.Margin(12, 8, 12, 8),
+                width=width,
+                on_hover=on_hover,
+                on_click=lambda e: self.page.launch_url("https://github.com/Nwokike/akili-app/releases/latest/download/akili-arm64-v8a.apk")
+            )
 
         mock_ad = self._get_mock_ad_control(height=height)
         return self._create_ad_container(mock_ad, width=width)
