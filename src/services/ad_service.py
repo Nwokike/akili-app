@@ -128,7 +128,7 @@ class AdService:
                 margin=ft.Margin(12, 8, 12, 8),
                 width=width,
                 on_hover=on_hover,
-                on_click=lambda e: self.page.launch_url("https://github.com/Nwokike/akili-app/releases/latest/download/akili-arm64-v8a.apk")
+                on_click=lambda e: self.page.run_task(self.page.launch_url, "https://github.com/Nwokike/akili-app#download")
             )
 
         mock_ad = self._get_mock_ad_control(height=height)

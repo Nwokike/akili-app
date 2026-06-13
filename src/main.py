@@ -100,7 +100,7 @@ async def main(page: ft.Page):
                 ft.TextButton(
                     "Download APK",
                     style=ft.ButtonStyle(color=ft.Colors.WHITE),
-                    on_click=lambda e: page.launch_url("https://github.com/Nwokike/akili-app/releases/latest/download/akili-arm64-v8a.apk")
+                    on_click=lambda e: page.run_task(page.launch_url, "https://github.com/Nwokike/akili-app#download")
                 ),
                 ft.TextButton(
                     "Dismiss",
