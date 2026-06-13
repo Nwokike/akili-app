@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: akili-web-showcase
+    plan: free
+    runtime: python
+    buildCommand: uv sync --frozen
+    startCommand: cd src && uv run uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: FLET_FORCE_WEB_SERVER
+        value: "true"

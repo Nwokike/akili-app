@@ -1,6 +1,7 @@
 import contextlib
 
 import flet as ft
+from flet.controls.context import _context_page
 
 
 @ft.observable
@@ -86,7 +87,48 @@ class AppState:
                     listener(is_online)
 
 
-state = AppState()
+
+class AppStateProxy:
+    def __getattr__(self, name):
+        try:
+            page = _context_page.get()
+        except LookupError:
+            page = None
+
+        if page is not None:
+            if page.data is None:
+                page.data = {}
+            if "app_state" not in page.data or page.data["app_state"] is None:
+                page.data["app_state"] = AppState()
+            return getattr(page.data["app_state"], name)
+        else:
+            if not hasattr(self, "_fallback_state") or self._fallback_state is None:
+                self._fallback_state = AppState()
+            return getattr(self._fallback_state, name)
+
+    def __setattr__(self, name, value):
+        if name in ("_fallback_state", "__dict__"):
+            super().__setattr__(name, value)
+            return
+        
+        try:
+            page = _context_page.get()
+        except LookupError:
+            page = None
+
+        if page is not None:
+            if page.data is None:
+                page.data = {}
+            if "app_state" not in page.data or page.data["app_state"] is None:
+                page.data["app_state"] = AppState()
+            setattr(page.data["app_state"], name, value)
+        else:
+            if not hasattr(self, "_fallback_state") or self._fallback_state is None:
+                self._fallback_state = AppState()
+            setattr(self._fallback_state, name, value)
+
+
+state = AppStateProxy()
 
 
 async def check_internet_connection() -> bool:

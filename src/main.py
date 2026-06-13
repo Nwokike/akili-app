@@ -1,10 +1,8 @@
-import flet as ft
+import contextlib
 import logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
+import flet as ft
+from flet.controls.context import _context_page
 
 from core.state import check_internet_connection, state
 from core.theme import AppTheme
@@ -14,8 +12,47 @@ from services.credit_service import credit_service
 from services.gamification import gamification_service
 from services.lifecycle import LifecycleManager
 
+# Patch Page.run_task to preserve session context in async callbacks
+original_run_task = ft.Page.run_task
+
+def patched_run_task(self, handler, *args, **kwargs):
+    async def async_wrapper(*a, **kw):
+        _context_page.set(self)
+        return await handler(*a, **kw)
+    return original_run_task(self, async_wrapper, *args, **kwargs)
+
+ft.Page.run_task = patched_run_task
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+
 
 async def main(page: ft.Page):
+    # --- Session Context Initialization ---
+    import uuid
+
+    from core.state import AppState
+    
+    if page.data is None:
+        page.data = {}
+    session_id = str(uuid.uuid4())
+    db_path = f"storage/data/akili_{session_id}.db"
+    page.data["db_path"] = db_path
+    page.data["app_state"] = AppState()
+    print(f"[MAIN] Page ID: {id(page)}, Session DB path: {db_path}", flush=True)
+
+    # --- Session DB Cleanup on Disconnect ---
+    async def cleanup_session_db(e):
+        conn = page.data.get("db_conn")
+        if conn:
+            with contextlib.suppress(Exception):
+                await conn.close()
+            page.data["db_conn"] = None
+
+    page.on_disconnect = cleanup_session_db
+
     page.title = "Akili — After-School Learning App"
 
     def global_error_handler(e):
@@ -36,7 +73,7 @@ async def main(page: ft.Page):
     page.padding = 0
     page.spacing = 0
 
-    # --- Offline Mode Indicator ---
+    # --- Offline Mode Indicator & Web Showcase Banner ---
     def show_banner():
         page.banner.open = True
         page.update()
@@ -45,13 +82,37 @@ async def main(page: ft.Page):
         page.banner.open = False
         page.update()
 
-    offline_banner = ft.Banner(
-        bgcolor=ft.Colors.BLACK,
-        content=ft.Text("offline mode: progress is saved locally.", color=ft.Colors.WHITE),
-        leading=ft.Icon(ft.Icons.WIFI_OFF, color=ft.Colors.WHITE),
-        actions=[ft.TextButton("dismiss", style=ft.ButtonStyle(color=ft.Colors.WHITE), on_click=close_banner)],
-    )
-    page.banner = offline_banner
+    if page.web:
+        showcase_banner = ft.Banner(
+            bgcolor=ft.Colors.BLUE_900,
+            content=ft.Text(
+                "Welcome to the Akili Web Showcase! This is a temporary testing playground. Progress resets when your session ends. Download the Android app for the full experience.",
+                color=ft.Colors.WHITE,
+            ),
+            leading=ft.Icon(ft.Icons.INFO_OUTLINE, color=ft.Colors.WHITE),
+            actions=[
+                ft.TextButton(
+                    "Download APK",
+                    style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                    on_click=lambda e: page.launch_url("https://github.com/Nwokike/akili-app/releases/latest/download/akili-arm64-v8a.apk")
+                ),
+                ft.TextButton(
+                    "Dismiss",
+                    style=ft.ButtonStyle(color=ft.Colors.WHITE),
+                    on_click=close_banner
+                )
+            ]
+        )
+        page.banner = showcase_banner
+        page.banner.open = True
+    else:
+        offline_banner = ft.Banner(
+            bgcolor=ft.Colors.BLACK,
+            content=ft.Text("offline mode: progress is saved locally.", color=ft.Colors.WHITE),
+            leading=ft.Icon(ft.Icons.WIFI_OFF, color=ft.Colors.WHITE),
+            actions=[ft.TextButton("dismiss", style=ft.ButtonStyle(color=ft.Colors.WHITE), on_click=close_banner)],
+        )
+        page.banner = offline_banner
 
     def on_online_change(is_online: bool):
         if not is_online and not page.banner.open:
@@ -115,7 +176,7 @@ async def main(page: ft.Page):
     state.search_region = await db_manager.get_setting("search_region", "wt-wt")
     state.safesearch_level = await db_manager.get_setting("safesearch_level", "on")
 
-    page.data = {"ad_service": ad_service}
+    page.data["ad_service"] = ad_service
 
     async def navigate(route: str):
         page.route = route
@@ -250,3 +311,5 @@ async def main(page: ft.Page):
 
 if __name__ == "__main__":
     ft.run(main, assets_dir="assets")
+else:
+    app = ft.run(main, assets_dir="assets", export_asgi_app=True)

@@ -13,7 +13,6 @@ import traceback
 from datetime import datetime
 
 try:
-    import primp
     print("[DIAGNOSTICS] primp imported successfully!", flush=True)
 except Exception:
     print("[DIAGNOSTICS] primp import failed!", flush=True)

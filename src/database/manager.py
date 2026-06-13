@@ -6,23 +6,51 @@ import uuid
 from datetime import date, datetime, timedelta
 
 import aiosqlite
+from flet.controls.context import _context_page
 
 
 class DatabaseManager:
     def __init__(self, db_path: str = "storage/data/akili.db"):
-        self.db_path = os.path.abspath(db_path)
-        self._conn = None
+        self.default_db_path = os.path.abspath(db_path)
+        self._fallback_conn = None
 
     async def _get_conn(self):
-        if self._conn is None:
-            db_dir = os.path.dirname(self.db_path)
-            if db_dir:
-                os.makedirs(db_dir, exist_ok=True)
-            self._conn = await aiosqlite.connect(self.db_path)
-            self._conn.row_factory = aiosqlite.Row
-            await self._conn.execute("PRAGMA journal_mode=WAL;")
-            await self._conn.execute("PRAGMA foreign_keys=ON;")
-        return self._conn
+        try:
+            page = _context_page.get()
+        except LookupError:
+            page = None
+
+        if page is not None:
+            if page.data is None:
+                page.data = {}
+            if "db_conn" not in page.data or page.data["db_conn"] is None:
+                if "db_path" not in page.data or not page.data["db_path"]:
+                    session_id = str(uuid.uuid4())
+                    page.data["db_path"] = f"storage/data/akili_{session_id}.db"
+                
+                path = os.path.abspath(page.data["db_path"])
+                print(f"[DB_MANAGER] Page ID: {id(page)}, Flet session connection to: {path}", flush=True)
+                db_dir = os.path.dirname(path)
+                if db_dir:
+                    os.makedirs(db_dir, exist_ok=True)
+                conn = await aiosqlite.connect(path)
+                conn.row_factory = aiosqlite.Row
+                await conn.execute("PRAGMA journal_mode=WAL;")
+                await conn.execute("PRAGMA foreign_keys=ON;")
+                page.data["db_conn"] = conn
+            return page.data["db_conn"]
+        else:
+            if self._fallback_conn is None:
+                path = os.path.abspath(self.default_db_path)
+                print(f"[DB_MANAGER] Fallback connection to: {path}", flush=True)
+                db_dir = os.path.dirname(path)
+                if db_dir:
+                    os.makedirs(db_dir, exist_ok=True)
+                self._fallback_conn = await aiosqlite.connect(path)
+                self._fallback_conn.row_factory = aiosqlite.Row
+                await self._fallback_conn.execute("PRAGMA journal_mode=WAL;")
+                await self._fallback_conn.execute("PRAGMA foreign_keys=ON;")
+            return self._fallback_conn
 
     async def init_db(self):
         db = await self._get_conn()
@@ -835,9 +863,21 @@ class DatabaseManager:
         await db.execute("PRAGMA foreign_keys=ON;")
 
     async def close(self):
-        if self._conn:
-            await self._conn.close()
-            self._conn = None
+        try:
+            page = _context_page.get()
+        except LookupError:
+            page = None
+
+        if page is not None:
+            if page.data is not None:
+                conn = page.data.get("db_conn")
+                if conn:
+                    await conn.close()
+                    page.data["db_conn"] = None
+        else:
+            if self._fallback_conn:
+                await self._fallback_conn.close()
+                self._fallback_conn = None
 
 
 db_manager = DatabaseManager()
