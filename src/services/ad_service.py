@@ -110,7 +110,7 @@ class AdService:
                     [
                         ft.Icon(ft.Icons.ANDROID_ROUNDED, color=AppColors.PRIMARY, size=20),
                         ft.Text(
-                            "Akili Web Preview — Click to get the Android App",
+                            "Akili Web Preview — Download Android Beta (In Development)",
                             size=12,
                             weight=ft.FontWeight.W_600,
                             color=ft.Colors.ON_SURFACE,

@@ -92,7 +92,7 @@ async def main(page: ft.Page):
         showcase_banner = ft.Banner(
             bgcolor=ft.Colors.BLUE_900,
             content=ft.Text(
-                "Welcome to the Akili Web Showcase! This is a temporary testing playground. Progress resets when your session ends. Download the Android app for the full experience.",
+                "Welcome to the Akili Web Showcase! This is a temporary testing playground. Progress resets when your session ends. Download the Android Beta (Active Development) for the full experience.",
                 color=ft.Colors.WHITE,
             ),
             leading=ft.Icon(ft.Icons.INFO_OUTLINE, color=ft.Colors.WHITE),
