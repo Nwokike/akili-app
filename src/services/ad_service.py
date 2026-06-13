@@ -123,7 +123,7 @@ class AdService:
                 bgcolor=ft.Colors.with_opacity(0.04, ft.Colors.ON_SURFACE),
                 border=ft.Border.all(1, ft.Colors.with_opacity(0.1, ft.Colors.ON_SURFACE)),
                 border_radius=AppStyles.RADIUS,
-                padding=ft.padding.symmetric(vertical=4, horizontal=12),
+                padding=ft.Padding(12, 4, 12, 4),
                 alignment=ft.Alignment.CENTER,
                 margin=ft.Margin(12, 8, 12, 8),
                 width=width,
