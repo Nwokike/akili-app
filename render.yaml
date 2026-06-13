@@ -4,9 +4,7 @@ services:
     plan: free
     runtime: python
     buildCommand: uv sync --frozen
-    startCommand: uv run uvicorn src.main:app --host 0.0.0.0 --port $PORT
+    startCommand: uv run hypercorn src.main:app --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
-      - key: FLET_FORCE_WEB_SERVER
-        value: "true"
