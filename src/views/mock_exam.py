@@ -460,17 +460,34 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
         score["open_total"] = 0.0
         score["open_earned"] = 0.0
 
+        # ── Build exam content STRICTLY from the course's module materials ──
+        # The mock exam must test what the student has actually studied — it is
+        # derived from generated lesson content, NOT fresh web research. For any
+        # module without a generated lesson yet, fall back to its title + topics
+        # so the content block is never empty.
+        all_modules = await db_manager.get_modules(course["id"])
+        content_blocks = []
+        for m in all_modules:
+            lesson = (m.get("lesson_cache") or "").strip()
+            if lesson:
+                content_blocks.append(f"### {m['title']}\n{lesson[:1500]}")
+            else:
+                topics = json.loads(m.get("topics_json") or "[]") if m.get("topics_json") else []
+                topic_line = f" (topics: {', '.join(topics)})" if topics else ""
+                content_blocks.append(f"### {m['title']}{topic_line}\n[Lesson not yet generated for this module — base questions on the title/topics above only.]")
+        course_material = "\n\n".join(content_blocks)[:8000]
+
         mix_instructions = get_mix_prompt(EXAM_MIX)
         prompt = (
-            f"You are creating an official, high-stakes mock exam for '{course['subject']}' at {course.get('level', state.education_level)} level.\n"
-            f"To ensure maximum rigor and high standards, search the web specifically for actual past questions and curricula "
-            f"from reputable national and international exam bodies (e.g., WAEC, JAMB, GCSE, SAT, AP, NECO) related to '{course['subject']}'.\n\n"
+            f"You are creating a comprehensive mock exam for '{course['subject']}' at {course.get('level', state.education_level)} level.\n"
+            f"This exam must test ONLY what the student has studied in this course, derived strictly from the course material below.\n\n"
+            f"=== COURSE MATERIAL (the ONLY source you may use) ===\n{course_material}\n=== END COURSE MATERIAL ===\n\n"
             f"CRITICAL REQUIREMENTS:\n"
-            f"1. Search specifically for actual past papers or standardized questions. Do NOT generate simple, shallow, or easy textbook questions.\n"
-            f"2. Every question must be challenging, authentic, and align perfectly with standard curricula (like WAEC, JAMB, or GCSE).\n"
-            f"3. Put ALL objective questions FIRST (Section A), then ALL theory/subjective (Section B).\n"
-            f"4. Use search_web to find and verify the questions, real source material, and actual solutions/explanations.\n"
-            f"5. Each question must include 'type', 'source_material', 'source_url'.\n"
+            f"1. Base EVERY question STRICTLY on the course material above. Do NOT introduce topics, facts, or terminology outside it.\n"
+            f"2. Spread questions across the modules covered above — do not focus on only one module.\n"
+            f"3. Make questions challenging and exam-worthy, but never beyond the scope of the material.\n"
+            f"4. Put ALL objective questions FIRST (Section A), then ALL theory/subjective (Section B).\n"
+            f"5. Each question must include 'type' and 'source_material' (derived from the course material above, not outside knowledge).\n"
             f"6. FORMULA RENDERING CONSTRAINT: Do NOT use LaTeX syntax (like $, $$, \\frac, \\sqrt, etc.) for scientific/mathematical equations. "
             f"Instead, format all equations and formulas using standard Unicode characters, bold/italic text, and sub/superscripts "
             f"(e.g., use 'H₂O', 'x²', '±', '√', 'π', and italics for variables) so they render beautifully and natively in standard markdown.\n\n"
@@ -496,8 +513,8 @@ def build_mock_exam_view(page: ft.Page, navigate) -> ft.View:
             response = await ai_service.chat_with_healing(
                 messages=[{"role": "user", "content": prompt}],
                 validation_func=val_exam,
-                system_prompt="Generate a rigorous mock exam with verified source material. Return ONLY valid JSON array.",
-                use_tools=True,
+                system_prompt="Generate a mock exam derived ONLY from the supplied course material. Return ONLY valid JSON array.",
+                use_tools=False,
                 on_status=_update_status,
             )
             parsed = response.get("parsed")

@@ -1,10 +1,6 @@
-import flet as ft
 import logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
+import flet as ft
 
 from core.state import check_internet_connection, state
 from core.theme import AppTheme
@@ -13,6 +9,8 @@ from services.ad_service import AdService
 from services.credit_service import credit_service
 from services.gamification import gamification_service
 from services.lifecycle import LifecycleManager
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
 
 async def main(page: ft.Page):

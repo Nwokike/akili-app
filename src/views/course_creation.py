@@ -148,6 +148,62 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
             page.update()
             return
 
+        # ── Duplicate course check ──────────────────────────────────
+        # Prevent the same subject + same class/level from being created twice.
+        # A different level for the same subject is allowed (e.g. Biology SS1 vs SS2).
+        existing = await db_manager.get_course_by_subject_level(subject, state.education_level)
+        if existing:
+            # Build a "you already have this course" panel with an Open button.
+            async def _open_existing(_e=None):
+                state.current_course = existing
+                await navigate("/modules")
+
+            existing_panel = ft.Container(
+                content=ft.Column(
+                    [
+                        ft.Icon(ft.Icons.LIBRARY_BOOKS_ROUNDED, size=56, color=AppColors.PRIMARY),
+                        ft.Text("You already have this course", size=20, weight=ft.FontWeight.BOLD, text_align=ft.TextAlign.CENTER),
+                        ft.Text(
+                            f"You've already created “{existing['subject']}” for {existing['level']}. Open it to continue where you left off, or pick a different subject/level.",
+                            size=13,
+                            color=ft.Colors.ON_SURFACE_VARIANT,
+                            text_align=ft.TextAlign.CENTER,
+                        ),
+                        ft.Row(
+                            [
+                                ft.FilledButton(
+                                    "Open Existing",
+                                    icon=ft.Icons.FOLDER_OPEN_ROUNDED,
+                                    style=ft.ButtonStyle(
+                                        bgcolor=AppColors.PRIMARY,
+                                        color=ft.Colors.WHITE,
+                                        shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
+                                    ),
+                                    on_click=lambda e: page.run_task(_open_existing),
+                                ),
+                                ft.OutlinedButton(
+                                    "Choose Another",
+                                    icon=ft.Icons.ARROW_BACK_ROUNDED,
+                                    on_click=lambda e: page.run_task(navigate, "/dashboard"),
+                                ),
+                            ],
+                            alignment=ft.MainAxisAlignment.CENTER,
+                            spacing=12,
+                        ),
+                    ],
+                    spacing=14,
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                ),
+                padding=32,
+                border_radius=AppStyles.RADIUS,
+                bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+                border=ft.Border.all(1, ft.Colors.with_opacity(0.1, AppColors.PRIMARY)),
+                alignment=ft.Alignment.CENTER,
+            )
+            body_container.content = existing_panel
+            page.update()
+            return
+
         # Hide inputs and show the premium progress card
         suggestions_col.visible = False
         custom_subject_field.visible = False

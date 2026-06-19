@@ -1,6 +1,6 @@
 [project]
 name = "akili"
-version = "1.1.0"
+version = "1.2.0"
 description = "After-School Learning App for Everyone"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -25,7 +25,7 @@ packages = ["src"]
 [tool.flet]
 org = "ng.kiri"
 product = "Akili"
-build_number = 2
+build_number = 3
 
 [tool.flet.app]
 path = "src"
@@ -45,7 +45,6 @@ usesCleartextTraffic = "true"
 "android.permission.CAMERA" = true
 "android.permission.RECORD_AUDIO" = true
 "android.permission.WAKE_LOCK" = true
-"android.permission.READ_MEDIA_IMAGES" = true
 
 [dependency-groups]
 dev = [

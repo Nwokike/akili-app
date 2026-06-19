@@ -451,6 +451,8 @@ class AIService:
             assistant_message = {"role": "assistant", "content": None, "tool_calls": []}
 
             for _, tc in tool_calls_buffer.items():
+                # Repair names that arrived fused with their arguments.
+                tc["name"], tc["arguments"] = _normalize_tool_call(tc["name"], tc["arguments"])
                 print(f"[AI Tool Call] {tc['name']}({tc['arguments']})", flush=True)
                 assistant_message["tool_calls"].append({"id": tc["id"], "type": "function", "function": {"name": tc["name"], "arguments": tc["arguments"]}})
             current_messages.append(assistant_message)
@@ -638,7 +640,10 @@ class AIService:
                 print(f"\n[AI RAW CONTENT] {final_content[:500]}...", flush=True)
                 break
 
-            # Handle Tool Calls
+            # Handle Tool Calls — normalize any fused name/arguments before use.
+            for tc in message.get("tool_calls", []):
+                fn = tc.get("function", {})
+                fn["name"], fn["arguments"] = _normalize_tool_call(fn.get("name", ""), fn.get("arguments", ""))
             current_messages.append(message)
 
             for tc in message.get("tool_calls", []):
@@ -796,6 +801,30 @@ def _strip_thinking(text: str) -> str:
             cleaned = ""
     cleaned = re.sub(r"<tool_call>.*?</tool_call>", "", cleaned, flags=re.DOTALL).strip()
     return cleaned or text
+
+
+def _normalize_tool_call(name: str, arguments: str) -> tuple[str, str]:
+    """Repair tool calls whose name arrived fused with their arguments.
+
+    Some streaming models emit a single string like ``search_videos{"query": "..."}``
+    in the ``name`` field instead of splitting name/arguments cleanly. This pulls
+    the arguments back out so dispatch + the assistant message we echo back to the
+    model are well-formed (otherwise the provider rejects it with
+    "tool ... was not in request.tools").
+    """
+    if not name:
+        return name, arguments
+    # Name fused with a JSON object: search_videos{"query": "..."}
+    brace_idx = name.find("{")
+    paren_idx = name.find("(")
+    cut = min(i for i in (brace_idx, paren_idx) if i != -1) if min(brace_idx, paren_idx) != -1 else -1
+    if cut > 0:
+        clean_name = name[:cut].strip()
+        leaked = name[cut:].strip()
+        # Prepend leaked args to whatever arguments we already accumulated.
+        merged = (leaked + arguments) if arguments else leaked
+        return clean_name, merged
+    return name, arguments
 
 
 ai_service = AIService()

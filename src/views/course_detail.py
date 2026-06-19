@@ -100,21 +100,60 @@ async def build_course_detail_view(page: ft.Page, navigate) -> ft.View:
             bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.AMBER),
         )
 
-    # ── Mock Exam Button ──────────────────────────────────────
-    exam_btn = ft.Container(
-        content=ft.FilledButton(
-            "📝 Take Mock Exam",
-            on_click=lambda e: page.run_task(navigate, "/exam"),
-            style=ft.ButtonStyle(
-                bgcolor=AppColors.ACCENT,
-                color=ft.Colors.WHITE,
-                shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
-                padding=14,
+    # ── Mock Exam Button (gated on all modules unlocked) ─────────
+    # Mock exam unlocks only once the LAST module is unlocked — since module[0]
+    # starts unlocked and each quiz pass unlocks the next in strict sequence,
+    # "last module unlocked" means the student has reached the end of the path.
+    all_modules_unlocked = bool(modules) and modules[-1]["is_unlocked"]
+    unlocked_count = sum(1 for m in modules if m["is_unlocked"])
+
+    if all_modules_unlocked:
+        exam_btn = ft.Container(
+            content=ft.FilledButton(
+                "📝 Take Mock Exam",
+                on_click=lambda e: page.run_task(navigate, "/exam"),
+                style=ft.ButtonStyle(
+                    bgcolor=AppColors.ACCENT,
+                    color=ft.Colors.WHITE,
+                    shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
+                    padding=14,
+                ),
+                width=float("inf"),
             ),
-            width=float("inf"),
-        ),
-        padding=ft.Padding(0, 0, 0, 8),
-    )
+            padding=ft.Padding(0, 0, 0, 8),
+        )
+    else:
+        exam_btn = ft.Container(
+            content=ft.Column(
+                [
+                    ft.FilledButton(
+                        f"📝 Mock Exam — Locked ({unlocked_count}/{len(modules)} modules)",
+                        disabled=True,
+                        style=ft.ButtonStyle(
+                            bgcolor=ft.Colors.SURFACE_CONTAINER_HIGHEST,
+                            color=ft.Colors.ON_SURFACE_VARIANT,
+                            shape=ft.RoundedRectangleBorder(radius=AppStyles.RADIUS),
+                            padding=14,
+                        ),
+                        width=float("inf"),
+                    ),
+                    ft.Row(
+                        [
+                            ft.Icon(ft.Icons.LOCK_OUTLINED, size=16, color=ft.Colors.ON_SURFACE_VARIANT),
+                            ft.Text(
+                                f"Finish all {len(modules)} modules to unlock the Mock Exam. It tests everything you've learned in this course.",
+                                size=12,
+                                color=ft.Colors.ON_SURFACE_VARIANT,
+                                expand=True,
+                            ),
+                        ],
+                        spacing=8,
+                    ),
+                ],
+                spacing=6,
+            ),
+            padding=ft.Padding(0, 0, 0, 8),
+        )
 
     module_list = ft.Column(spacing=12, expand=True)
 

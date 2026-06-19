@@ -2,7 +2,7 @@ API_GATEWAY = "https://api.kiri.ng"
 
 # Gateway authentication (must match GATEWAY_SECRET in Cloudflare Worker secrets)
 GATEWAY_SECRET = "mobile-v1"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.2.0"
 APP_NAME = "Akili"
 APP_TAGLINE = "After-School Learning App for Everyone"
 APP_FULL_NAME = f"{APP_NAME} — {APP_TAGLINE}"
@@ -31,7 +31,7 @@ CREDIT_COSTS = {
     "course_create": 15,
     "lesson_gen": 5,
     "quiz": 0,
-    "mock_exam": 10,
+    "mock_exam": 0,
     "tutor_question": 2,
     "tutor_media": 3,
     "study_plan": 5,

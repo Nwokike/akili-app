@@ -18,6 +18,7 @@ from database.manager import db_manager
 from services.ai_service import ai_service
 from services.evaluation import evaluate_open_answers
 from services.file_picker import FilePickerService
+from services.gamification import gamification_service
 from services.share_service import ShareType, show_share_sheet
 
 
@@ -320,11 +321,20 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         )
 
         if passed and state.current_course:
+            # Mark THIS module complete (flips is_completed + recalculates course
+            # progress %). Previously this was never called, so progress stayed at 0%
+            # even after a pass and module cards never showed a completed state.
+            await db_manager.complete_module(module["id"])
+
+            # Unlock the next module in sequence (existing sequential-gating logic).
             all_modules = await db_manager.get_modules(state.current_course["id"])
             for i, m in enumerate(all_modules):
                 if m["id"] == module["id"] and i + 1 < len(all_modules):
                     await db_manager.unlock_module(all_modules[i + 1]["id"])
                     break
+
+            # Award the documented quiz-pass XP.
+            await gamification_service.award_xp("quiz_pass")
 
         color = AppColors.SUCCESS if passed else AppColors.ERROR
         result_controls = [
@@ -444,13 +454,21 @@ def build_quiz_view(page: ft.Page, navigate) -> ft.View:
         score["open_earned"] = 0.0
 
         lesson_cache = module.get("lesson_cache", "")
-        context = f"\n\nLesson content:\n{lesson_cache[:3000]}" if lesson_cache else ""
+        context = f"\n\nLESSON CONTENT (the only source you may use):\n{lesson_cache[:3000]}" if lesson_cache else ""
+        scope_rule = (
+            "SCOPE RULE: Base EVERY question STRICTLY on the lesson content above. "
+            "Do NOT introduce topics, facts, or terminology that are not covered in it. "
+            "If the lesson is thin on a point, ask a simpler question about what IS covered rather than reaching outside it."
+            if lesson_cache
+            else ""
+        )
 
         mix_instructions = get_mix_prompt(QUIZ_MIX)
         prompt = (
             f"Generate questions about '{module['title']}' for {state.education_level or 'Grade 10'} students.{context}\n\n"
+            f"{scope_rule}\n\n"
             f"QUESTION MIX (exactly {sum(QUIZ_MIX.values())} questions):\n{mix_instructions}\n\n"
-            f"CRITICAL: For EVERY question, include 'source_material' with verified facts.\n"
+            f"CRITICAL: For EVERY question, derive 'source_material' from the lesson content above — not from outside knowledge.\n"
             f"FORMULA RENDERING CONSTRAINT: Do NOT use LaTeX syntax (like $, $$, \\frac, \\sqrt, etc.) for scientific/mathematical equations. "
             f"Instead, format all equations and formulas using standard Unicode characters, bold/italic text, and sub/superscripts "
             f"(e.g., use 'H₂O', 'x²', '±', '√', 'π', and italics for variables) so they render beautifully and natively in standard markdown.\n\n"

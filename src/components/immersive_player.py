@@ -44,6 +44,7 @@ class ImmersivePlayer(ft.Stack):
         self._reconnect_count = 0
         self._is_final_error = False
         self._is_closing = False
+        self._is_resolving = False  # True while resolving a stream URL (suppress transient errors)
         self._previous_keyboard_handler = None
 
         # Overlay
@@ -267,12 +268,18 @@ class ImmersivePlayer(ft.Stack):
                 if "youtube.com" in self.resource or "youtu.be" in self.resource or "embed" in self.resource.lower() or "shorts" in self.resource.lower():
                     self.status_text.value = "Resolving YouTube stream..."
                     self.update()
+                    # Mark "resolving" so transient errors fired by the empty/stale
+                    # playlist during the ~1s resolution window are ignored — we're
+                    # about to set the correct direct-stream URL momentarily.
+                    self._is_resolving = True
                     try:
                         from services.youtube_resolver import resolve_youtube_url
 
                         self.resolved_resource = await resolve_youtube_url(self.resource)
                     except Exception as ex:
                         logger.exception("Failed to resolve YouTube URL, falling back to original: %s", ex)
+                    finally:
+                        self._is_resolving = False
 
             self.video.playlist = [
                 fv.VideoMedia(self.resolved_resource, http_headers=self.http_headers),
@@ -316,6 +323,12 @@ class ImmersivePlayer(ft.Stack):
 
     def _on_error(self, e: ft.ControlEvent):
         err_msg = str(e.data) if hasattr(e, "data") and e.data else str(e)
+        # Ignore errors that arrive while we're still resolving the stream URL —
+        # they come from the empty/stale playlist before the direct URL is set,
+        # and the about-to-be-set URL fixes playback within ~1s.
+        if self._is_resolving:
+            logger.debug("Ignoring transient video error during resolution: %s", err_msg)
+            return
         logger.warning("Video error: %s", err_msg)
         if "Cannot seek" in err_msg or "force-seekable" in err_msg:
             return

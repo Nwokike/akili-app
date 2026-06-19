@@ -169,11 +169,11 @@
 |--------|---------|
 | Course Creation | 15 |
 | Lesson Generation | 5 |
-| Mock Exam | 10 |
 | Tutor Question | 2 |
 | **Practice Quiz** | **FREE** |
+| **Mock Exam** | **FREE** |
 
-**100 credits/day** — resets at midnight. Always free to practice.
+**100 credits/day** — resets at midnight. Always free to practice and take mock exams.
 
 ---
 

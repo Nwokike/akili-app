@@ -260,6 +260,32 @@ class DatabaseManager:
         await db.execute("UPDATE courses SET progress_pct = ? WHERE id = ?", (progress, course_id))
         await db.commit()
 
+    async def get_course_by_subject_level(self, subject: str, level: str) -> dict | None:
+        """Find an existing course matching subject + level (case/space-insensitive).
+
+        Used to prevent duplicate course creation — e.g. a second "Biology" at the
+        same class/level. A different level for the same subject is allowed.
+        """
+        db = await self._get_conn()
+        async with db.execute(
+            """SELECT id, subject, level, curriculum_json, progress_pct, color_index
+               FROM courses
+               WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) AND LOWER(TRIM(level)) = LOWER(TRIM(?))
+               LIMIT 1""",
+            (subject, level),
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return None
+            return {
+                "id": row[0],
+                "subject": row[1],
+                "level": row[2],
+                "curriculum_json": row[3],
+                "progress_pct": row[4],
+                "color_index": row[5],
+            }
+
     async def delete_course(self, course_id: int):
         db = await self._get_conn()
         await db.execute("DELETE FROM modules WHERE course_id = ?", (course_id,))

@@ -21,7 +21,7 @@ class AppState:
     status_message: str = ""
 
     # Credits (daily)
-    credits_remaining: int = 150
+    credits_remaining: int = 100
     credits_date: str = ""  # YYYY-MM-DD of last reset
 
     # Gamification
@@ -97,8 +97,9 @@ async def check_internet_connection() -> bool:
 
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:
-            # Reaching gateway URL with short timeout is a true test of DNS + network access
-            await client.get(API_GATEWAY, follow_redirects=True)
+            # Hit the public /health endpoint — it requires no auth, so we avoid
+            # the 401 Unauthorized noise that hitting the gateway root produced.
+            await client.get(f"{API_GATEWAY}/health", follow_redirects=True)
             return True
     except Exception:
         return False
