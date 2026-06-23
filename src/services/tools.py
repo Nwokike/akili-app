@@ -20,6 +20,14 @@ logger = logging.getLogger(__name__)
 # Shared DDGS instance (reuses HTTP connections and engine cache)
 _ddgs = DDGS(timeout=10)
 
+# Per-process URL → extracted-content cache for read_page.
+# The agentic loop sometimes re-reads the same URL across iterations (the model
+# isn't always sure it captured everything). Re-serving the identical bytes we
+# already fetched is a pure win: no quality change, no wasted network round-trip,
+# no extra load on the source site. Only successful extractions are cached —
+# errors are always re-tried in case they were transient.
+_read_page_cache: dict[str, str] = {}
+
 
 def get_current_time() -> str:
     """Full timestamp for AI context — MANDATORY on every AI call."""
@@ -182,9 +190,20 @@ async def search_books(query: str, max_results: int = 5) -> list[dict]:
 
 
 async def read_page(url: str) -> dict:
-    """Extract full page content as clean Markdown from any URL."""
+    """Extract full page content as clean Markdown from any URL.
+
+    Successful extractions are cached per-process: if the agentic loop requests
+    the same URL again, the identical bytes are returned without a new fetch.
+    Errors are never cached (they may have been transient).
+    """
     if not url:
         return {"error": "No URL provided"}
+
+    # Serve from cache if we've successfully extracted this URL before.
+    cached = _read_page_cache.get(url)
+    if cached is not None:
+        logger.info("📄 Cache hit for %s (%d chars)", url, len(cached))
+        return {"url": url, "content": cached}
 
     logger.info("📄 Extracting: %s", url)
     try:
@@ -198,6 +217,9 @@ async def read_page(url: str) -> dict:
         if len(content) > 15000:
             content = content[:15000] + "\n\n[... content truncated]"
         logger.info("Extracted %d chars from %s", len(content), url)
+        # Only cache genuine successes (non-empty content).
+        if content:
+            _read_page_cache[url] = content
         return {"url": url, "content": content}
     except Exception as e:
         logger.warning("read_page failed: %s", e)

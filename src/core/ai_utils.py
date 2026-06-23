@@ -20,6 +20,11 @@ _JSON_BLOCK_RE = re.compile(r"```json\s*(.*?)\s*```", re.DOTALL | re.IGNORECASE)
 _GENERIC_BLOCK_RE = re.compile(r"```\s*(.*?)\s*```", re.DOTALL)
 _MARKDOWN_FENCE_RE = re.compile(r"```[a-zA-Z]*\s*", re.IGNORECASE)
 
+# Leading reasoning preamble the service prepends (💭 *{reasoning}*) before the
+# real JSON payload when a reasoning model returns reasoning_content. The
+# validator must see only the JSON, so this is stripped before extraction.
+_REASONING_PREAMBLE_RE = re.compile(r"^\s*💭\s*\*.*?\*\s*", re.DOTALL)
+
 
 def strip_thinking(text: str) -> str:
     """Remove <think>...</think> reasoning blocks and <tool_call> artifacts."""
@@ -35,6 +40,11 @@ def strip_thinking(text: str) -> str:
         cleaned = parts[-1].strip()
         if cleaned.startswith("<think>"):
             cleaned = ""
+
+    # Strip a leading "💭 *{reasoning}*" preamble the service prepends for
+    # reasoning models — it is not part of the actual payload and breaks JSON
+    # extraction, which would otherwise trigger a wasteful self-healing pass.
+    cleaned = _REASONING_PREAMBLE_RE.sub("", cleaned)
 
     return cleaned.strip()
 

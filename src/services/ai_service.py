@@ -635,8 +635,15 @@ class AIService:
                 reasoning = message.get("reasoning_content", "")
                 content = message.get("content", "")
 
-                final_content = f"💭 *{reasoning}*\n\n{content}" if reasoning else content
+                # Keep reasoning OUT of the returned content for the non-streaming
+                # chat() path: callers (curriculum, quiz, assignment, evaluation)
+                # validate this as JSON, and a "💭 *{reasoning}*" preamble would
+                # break extraction and trigger a wasteful self-healing pass. The
+                # reasoning is still logged below for debugging.
+                final_content = content or ""
 
+                if reasoning:
+                    print(f"[AI Reasoning] {str(reasoning)[:300]}...", flush=True)
                 print(f"\n[AI RAW CONTENT] {final_content[:500]}...", flush=True)
                 break
 

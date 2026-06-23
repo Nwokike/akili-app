@@ -241,7 +241,14 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
                 f"3. Return the result strictly as a JSON object containing a list of 'modules'. Each module "
                 f"must have a 'title' (string) and a 'topics' list of strings (each topic must be highly detailed and specific, "
                 f"e.g. 'Acid-Base Titration Techniques' rather than just 'Titration').\n\n"
-                f"Format the final response strictly as a valid JSON object."
+                f"Format the final response strictly as a valid JSON object.\n\n"
+                f"RESEARCH EFFICIENCY (quality-preserving):\n"
+                f"- Aim for 6-10 modules with 3-5 specific topics each. This is enough depth for a complete course.\n"
+                f"- 2-4 authoritative sources are sufficient. Do NOT keep searching after you have solid coverage — "
+                f"re-reading the same site or guessing additional URLs does not improve the curriculum.\n"
+                f"- Use the exact URLs returned by search_web. Do NOT guess or construct URLs (they 404).\n"
+                f"- Once you have enough verified material, STOP researching and emit the final JSON immediately. "
+                f"Do not preface it with any commentary, reasoning, or summary."
             )
 
             def val_curriculum(text):
