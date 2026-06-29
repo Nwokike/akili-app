@@ -344,9 +344,12 @@ def build_tutor_chat_view(page: ft.Page, navigate) -> ft.View:
             for m in media_to_process:
                 m["data"] = None
 
-            if full_response:
+            if full_response and len(full_response) >= 100:
                 chat_messages[msg_idx]["content"] = full_response
                 await gamification_service.award_xp("tutor_question")
+            elif full_response and len(full_response) < 100:
+                # Too short — likely truncated search results or raw JSON leak
+                chat_messages[msg_idx]["content"] = "I'm sorry, my response was too short to be useful. Could you please rephrase your question or ask again?"
             else:
                 chat_messages[msg_idx]["content"] = "Sorry, I couldn't process that. Please try again."
 
