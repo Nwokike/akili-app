@@ -730,9 +730,16 @@ class AIService:
         use_tools: bool = True,
         on_status=None,
         max_healing_attempts: int = 2,
+        min_length: int = 300,
         **kwargs,
     ) -> dict:
-        """Call AI and automatically self-heal if the validation_func returns None."""
+        """Call AI and automatically self-heal if the validation_func returns None.
+
+        If ``min_length > 0`` and the raw response is shorter than that threshold,
+        self-healing is triggered immediately — even if the content could be parsed.
+        This catches truncated search results / raw JSON leaks that slip past
+        structural validation (e.g. ``[]`` or ``{}`` with a handful of chars).
+        """
         current_messages = list(messages)
 
         # First attempt
@@ -741,11 +748,17 @@ class AIService:
             return resp
 
         raw_content = resp.get("content", "")
-        try:
-            parsed = validation_func(raw_content)
-        except Exception as e:
-            logger.warning("Validation exception: %s", e)
+
+        # ── Length gate — catch truncated / leaked output before validation ──
+        if min_length > 0 and len(raw_content) < min_length:
+            logger.warning("Response too short (%d chars < %d min), triggering self-healing", len(raw_content), min_length)
             parsed = None
+        else:
+            try:
+                parsed = validation_func(raw_content)
+            except Exception as e:
+                logger.warning("Validation exception: %s", e)
+                parsed = None
 
         if parsed is not None:
             resp["parsed"] = parsed
