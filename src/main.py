@@ -117,7 +117,7 @@ async def main(page: ft.Page):
 
     async def navigate(route: str):
         page.route = route
-        # route_change is triggered automatically via on_route_change
+        await route_change()
 
     async def route_change(e=None):
         # Preserve view stack when navigating to video player — pop back returns

@@ -82,6 +82,7 @@ def build_course_creation_view(page: ft.Page, navigate) -> ft.View:
                     validation_func=val_subjects,
                     system_prompt="Return ONLY valid JSON array of subject names. No markdown.",
                     use_tools=False,
+                    min_length=10,
                 )
                 parsed = response.get("parsed")
             except Exception as ex:
