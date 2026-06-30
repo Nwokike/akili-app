@@ -117,13 +117,10 @@ async def main(page: ft.Page):
 
     async def navigate(route: str):
         page.route = route
-        # route_change is triggered automatically via on_route_change
+        await route_change()
 
     async def route_change(e=None):
-        # Preserve view stack when navigating to video player — pop back returns
-        # to the correct prior view (tutor, lesson, etc.) instead of always /tutor.
-        if not page.route.startswith("/video_player"):
-            page.views.clear()
+        page.views.clear()
 
         if page.route in ("/splash", "/"):
             from views.splash import build_splash_view
@@ -195,8 +192,6 @@ async def main(page: ft.Page):
             async def _close_player():
                 if len(page.views) > 1:
                     page.views.pop()
-                    top = page.views[-1]
-                    page.route = top.route
                     page.update()
                 else:
                     await navigate("/tutor")
