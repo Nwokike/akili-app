@@ -24,7 +24,7 @@ packages = ["src"]
 [tool.flet]
 org = "ng.kiri"
 product = "Akili"
-build_number = 4
+build_number = 5
 desktop_flavor = "full"
 
 [tool.flet.app]

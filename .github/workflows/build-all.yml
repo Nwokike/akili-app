@@ -10,7 +10,7 @@ on:
       build_number:
         description: "Build number"
         required: true
-        default: "4"
+        default: "5"
 
 
 env:
@@ -18,7 +18,7 @@ env:
   FLET_CLI_NO_RICH_OUTPUT: "1"
   UV_PYTHON: "3.12"
   BUILD_VERSION: ${{ inputs.build_version || '1.3.0' }}
-  BUILD_NUMBER: ${{ inputs.build_number || '4' }}
+  BUILD_NUMBER: ${{ inputs.build_number || '5' }}
 
 jobs:
   # ─── Android APK (split per ABI) ───────────────────────
