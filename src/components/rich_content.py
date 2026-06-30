@@ -24,8 +24,8 @@ _VIDEO_EXTENSIONS = (".mp4", ".mkv", ".avi", ".mov", ".3gp", ".webm")
 # Markdown images: ![alt](url)
 _IMAGE_RE = re.compile(r"!\[([^\]]*)\]\((https?://[^\)]+)\)")
 
-# Lesson video format: [VIDEO]: Title - https://youtube.com/...
-_LESSON_VIDEO_RE = re.compile(r"\[VIDEO\]:\s*(.*?)\s*-\s*(https?://(?:www\.)?youtube\.com/watch\?v=[\w-]+)")
+# Lesson video format: [VIDEO]: Title - https://youtube.com/... (supports watch?v= and /embed/ URLs)
+_LESSON_VIDEO_RE = re.compile(r"\[VIDEO\]:\s*(.*?)\s*-\s*(https?://(?:www\.)?youtube\.com/(?:watch\?v=|embed/)[\w-]+)")
 
 # HTML iframe patterns for embedded videos
 _IFRAME_RE = re.compile(r"<iframe\b[^>]*src=[\"'](https?://[^\"']+)[\"'][^>]*>(?:</iframe>)?", re.IGNORECASE)
