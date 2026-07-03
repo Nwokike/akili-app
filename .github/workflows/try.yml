@@ -1,0 +1,30 @@
+name: Recover Keystore
+
+on:
+  workflow_dispatch: # Allows you to run it manually from the GitHub UI
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decode Keystore file
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > original_kiri_keystore.jks
+
+      - name: Extract Password Credentials
+        run: |
+          echo "=== Keystore Credentials ===" > keystore_info.txt
+          echo "Key Alias: ${{ secrets.KEY_ALIAS }}" >> keystore_info.txt
+          echo "Keystore Password: ${{ secrets.KEYSTORE_PASSWORD }}" >> keystore_info.txt
+          echo "Key Password: ${{ secrets.KEY_PASSWORD }}" >> keystore_info.txt
+
+      - name: Upload Files as Private Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: recovered-keystore-and-secrets
+          path: |
+            original_kiri_keystore.jks
+            keystore_info.txt
+          retention-days: 1 # Will auto-delete in 1 day for security
