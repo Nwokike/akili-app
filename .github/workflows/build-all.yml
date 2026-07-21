@@ -41,11 +41,11 @@ jobs:
           FLET_ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           FLET_ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: uv run flet build apk --yes --project akili --product "Akili" --org ng.kiri --build-version ${{ env.BUILD_VERSION }} --build-number ${{ env.BUILD_NUMBER }} --split-per-abi -v
+        run: uv run flet build apk --yes --project akili --product "Akili" --org ng.kiri --company "Kiri Research Labs" --build-version ${{ env.BUILD_VERSION }} --build-number ${{ env.BUILD_NUMBER }} --split-per-abi -v
       - uses: actions/upload-artifact@v5.0.0
         with:
           name: apk-split-abi
-          path: build/apk/
+          path: build/apk/*.apk
 
   # ─── Android AAB (Play Store) ──────────────────────────
   build-aab:
@@ -67,8 +67,8 @@ jobs:
           FLET_ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           FLET_ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: uv run flet build aab --yes --project akili --product "Akili" --org ng.kiri --build-version ${{ env.BUILD_VERSION }} --build-number ${{ env.BUILD_NUMBER }} -v
+        run: uv run flet build aab --yes --project akili --product "Akili" --org ng.kiri --company "Kiri Research Labs" --build-version ${{ env.BUILD_VERSION }} --build-number ${{ env.BUILD_NUMBER }} -v
       - uses: actions/upload-artifact@v5.0.0
         with:
           name: aab-playstore
-          path: build/aab/
+          path: build/aab/*.aab

@@ -24,6 +24,7 @@ packages = ["src"]
 [tool.flet]
 org = "ng.kiri"
 product = "Akili"
+company = "Kiri Research Labs"
 build_number = 6
 desktop_flavor = "full"
 
