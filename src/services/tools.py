@@ -14,6 +14,7 @@ from datetime import datetime
 from ddgs import DDGS
 
 from core.state import state
+from services.fallback_providers import openlibrary_book_fallback, youtube_video_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -127,11 +128,18 @@ async def search_news(query: str, max_results: int = 6) -> list[dict]:
 
 
 async def search_videos(query: str, max_results: int = 5) -> list[dict]:
-    """Video search — educational videos, tutorials, explainers."""
+    """Video search — educational videos, tutorials, explainers.
+
+    Falls back to YouTube InnerTube when DDGS rate-limits (returns 0 results)
+    or raises, since DDGS.videos only has a single backend engine.
+    """
     if not query:
         return [{"error": "No query provided"}]
 
     logger.info("🎬 Video search: '%s'", query)
+    clean = []
+    ddgs_error = None
+
     try:
         results = await asyncio.to_thread(
             _ddgs.videos,
@@ -152,19 +160,40 @@ async def search_videos(query: str, max_results: int = 5) -> list[dict]:
             }
             for r in results
         ]
-        logger.info("Found %d videos", len(clean))
-        return clean
+        logger.info("Found %d videos via DDGS", len(clean))
     except Exception as e:
-        logger.warning("search_videos failed: %s", e)
-        return [{"error": f"Video search failed: {e}"}]
+        logger.warning("DDGS video search failed: %s", e)
+        ddgs_error = e
+
+    # Fallback: DDGS.videos is single-engine (DuckDuckGo). When it returns 0
+    # results or throws, silently try YouTube InnerTube.
+    if not clean:
+        logger.info("DDGS.videos returned 0 results; trying YouTube fallback")
+        fallback = await youtube_video_fallback(query, max_results)
+        if fallback:
+            clean = fallback
+            logger.info("YouTube fallback returned %d videos", len(clean))
+
+    if clean:
+        return clean
+    if ddgs_error:
+        return [{"error": f"Video search failed: {ddgs_error}"}]
+    return []
 
 
 async def search_books(query: str, max_results: int = 5) -> list[dict]:
-    """Book search — textbooks, study guides, reference materials."""
+    """Book search — textbooks, study guides, reference materials.
+
+    Falls back to OpenLibrary when DDGS returns 0 results or raises,
+    since DDGS.books only has a single backend engine (Anna's Archive).
+    """
     if not query:
         return [{"error": "No query provided"}]
 
     logger.info("📚 Book search: '%s'", query)
+    clean = []
+    ddgs_error = None
+
     try:
         results = await asyncio.to_thread(
             _ddgs.books,
@@ -182,11 +211,25 @@ async def search_books(query: str, max_results: int = 5) -> list[dict]:
             }
             for r in results
         ]
-        logger.info("Found %d books", len(clean))
-        return clean
+        logger.info("Found %d books via DDGS", len(clean))
     except Exception as e:
-        logger.warning("search_books failed: %s", e)
-        return [{"error": f"Book search failed: {e}"}]
+        logger.warning("DDGS book search failed: %s", e)
+        ddgs_error = e
+
+    # Fallback: DDGS.books is single-engine (Anna's Archive). When it returns
+    # 0 results or throws, silently try OpenLibrary.
+    if not clean:
+        logger.info("DDGS.books returned 0 results; trying OpenLibrary fallback")
+        fallback = await openlibrary_book_fallback(query, max_results)
+        if fallback:
+            clean = fallback
+            logger.info("OpenLibrary fallback returned %d books", len(clean))
+
+    if clean:
+        return clean
+    if ddgs_error:
+        return [{"error": f"Book search failed: {ddgs_error}"}]
+    return []
 
 
 async def read_page(url: str) -> dict:
