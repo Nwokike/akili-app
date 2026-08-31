@@ -1,6 +1,18 @@
 import flet as ft
 
 from components.credit_dialog import show_credits_dialog
+
+
+def _open_version_dialog(page: ft.Page):
+    from core.state import state as _st
+    if getattr(_st, 'update_available', False) and getattr(_st, 'update_data', None):
+        from components.update_dialog import show_update_dialog
+        show_update_dialog(page, _st.update_data)
+    else:
+        from components.update_dialog import show_update_dialog
+        from core.constants import APP_VERSION as _ver
+        fallback = {'version': _ver, 'type': 'update', 'title': f'Akili {_ver}', 'release_notes': '• You\'re up to date on v' + _ver + '!\n• After-school learning for everyone\n• Full history on GitHub Releases', 'github_url': 'https://github.com/Nwokike/akili-app/releases/latest', 'playstore_url': 'https://play.google.com/store/apps/details?id=ng.kiri.akili'}
+        show_update_dialog(page, fallback)
 from core.constants import COUNTRIES
 from core.state import state
 from core.theme import AppColors, AppStyles
@@ -408,7 +420,7 @@ def build_settings_view(page: ft.Page, navigate) -> ft.View:
                     width=float("inf"),
                 ),
                 ft.Container(
-                    content=ft.Text("Akili Studio • v1.0.0", size=11, text_align=ft.TextAlign.CENTER, color=AppColors.LIGHT_TEXT_DIM),
+                    content=ft.Text("Akili Studio • v1.3.0", tooltip="Tap to view changelog", size=11, text_align=ft.TextAlign.CENTER, color=AppColors.LIGHT_TEXT_DIM),
                     alignment=ft.Alignment.CENTER,
                     padding=ft.Padding(0, 10, 0, 20),
                 ),

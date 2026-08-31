@@ -9,6 +9,7 @@ from services.ad_service import AdService
 from services.credit_service import credit_service
 from services.gamification import gamification_service
 from services.lifecycle import LifecycleManager
+from services.update_service import UpdateService
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
@@ -78,6 +79,20 @@ async def main(page: ft.Page):
 
     # --- Service Initialization ---
     ad_service = AdService(page)
+    update_service = UpdateService()
+    page.data['update_service'] = update_service
+    async def _check_updates():
+        data = await update_service.check_for_update()
+        if data:
+            from core.state import state as _st
+            _st.update_available = True
+            _st.update_data = data
+            try: page.update()
+            except: pass
+            if data.get('mandatory'):
+                from components.update_dialog import show_update_dialog
+                show_update_dialog(page, data)
+    page.run_task(_check_updates)
     page.run_task(ad_service.preload_interstitial)
     _lifecycle = LifecycleManager(page)
 

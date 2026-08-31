@@ -44,6 +44,8 @@ class AppState:
 
     # Connectivity
     is_online: bool = True
+    update_available: bool = False
+    update_data: dict | None = None
 
     def __init__(self):
         self.current_course = None
