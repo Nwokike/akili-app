@@ -1,0 +1,402 @@
+name: Build Multi-Platform & Create Release
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      build_version:
+        description: "Build version"
+        required: true
+        default: "2.0.0"
+      build_number:
+        description: "Build number"
+        required: true
+        default: "7"
+
+permissions:
+  contents: write
+
+env:
+  PYTHONUTF8: "1"
+  FLET_CLI_NO_RICH_OUTPUT: "1"
+  UV_PYTHON: "3.13"
+  BUILD_VERSION: ${{ inputs.build_version || '2.0.0' }}
+  BUILD_NUMBER: ${{ inputs.build_number || '7' }}
+
+jobs:
+  # ─── Q. Quality gate: lint + tests (blocks every build) ───────────────
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install dependencies (frozen lockfile, includes dev group)
+        run: uv sync --frozen
+      - name: Version consistency (pyproject vs workflow; version.json may be held back)
+        run: |
+          uv run python - <<'PY'
+          import json, os, sys, tomllib
+
+          py = tomllib.load(open("pyproject.toml", "rb"))["project"]["version"]
+          felb = str(tomllib.load(open("pyproject.toml", "rb"))["tool"]["flet"]["build_number"])
+          sys.path.insert(0, "src")
+          from core.constants import APP_BUILD_NUMBER, APP_VERSION
+
+          vj = json.load(open("version.json"))
+          env_v, env_b = os.environ["BUILD_VERSION"], os.environ["BUILD_NUMBER"]
+          errs = []
+
+          # Hard: the artifact is built with the project's own version, and
+          # the APP's own constants (shown in About + update dialogs) match.
+          if env_v != py:
+              errs.append(f"BUILD_VERSION {env_v!r} != pyproject {py!r}")
+          if APP_VERSION != py:
+              errs.append(f"core.constants.APP_VERSION {APP_VERSION!r} != pyproject {py!r}")
+          if str(APP_BUILD_NUMBER) != env_b:
+              errs.append(f"core.constants.APP_BUILD_NUMBER {APP_BUILD_NUMBER} != BUILD_NUMBER {env_b}")
+          if felb != env_b:
+              errs.append(f"tool.flet.build_number {felb} != BUILD_NUMBER {env_b}")
+
+          def vt(s):
+              return tuple(int(x) for x in s.split("."))
+
+          vj_v, py_v = vj["version"], py
+          if vj_v == py_v:
+              # Fully-synced state must agree on the build number too.
+              if str(vj["build_number"]) != env_b:
+                  errs.append(
+                      f"version.json synced to {vj_v} but build_number "
+                      f"{vj['build_number']} != BUILD_NUMBER {env_b}"
+                  )
+              else:
+                  print(f"versions synced: {py} (build {env_b})")
+          elif vt(vj_v) < vt(py_v):
+              # Owner release policy: version.json (in-app update notes) is
+              # held back from the repo until the Play Store upload ships.
+              print(
+                  f"NOTICE: version.json held back at {vj_v} "
+                  f"(build {vj['build_number']}) while app is {py} - "
+                  "expected until Play Store upload, then commit version.json."
+              )
+          else:
+              errs.append(
+                  f"version.json {vj_v} is AHEAD of pyproject {py} - update notes "
+                  "point at an app version that doesn't exist"
+              )
+
+          if errs:
+              print("Version drift:", file=sys.stderr)
+              print("\n".join(f"  - {e}" for e in errs), file=sys.stderr)
+              sys.exit(1)
+          PY
+      - name: Ruff
+        run: uv run ruff check src tests
+      - name: Tests
+        run: uv run pytest -q
+      # HARD FAIL if Google TEST ad units ever reappear. Production IDs are
+      # in place (see pyproject APPLICATION_ID + src/core/constants.py); a
+      # test unit in a release serves test ads, pays nothing, and would break
+      # the Play listing.
+      - name: AdMob release-ID guard
+        run: |
+          if grep -q "3940256099942544" pyproject.toml src/core/constants.py; then
+            echo "::error::Google TEST AdMob IDs are in place. Use the production units before tagging a release."
+            exit 1
+          fi
+          exit 0
+
+  # ─── 0. Create Release Tag & Placeholder ───────────────
+  prepare-release:
+    needs: [quality]
+    runs-on: ubuntu-latest
+    outputs:
+      TAG_NAME: ${{ steps.tag_info.outputs.TAG_NAME }}
+      RELEASE_NAME: ${{ steps.tag_info.outputs.RELEASE_NAME }}
+      IS_PRERELEASE: ${{ steps.tag_info.outputs.IS_PRERELEASE }}
+      MAKE_LATEST: ${{ steps.tag_info.outputs.MAKE_LATEST }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Release Tag & Name
+        id: tag_info
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "TAG_NAME=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "RELEASE_NAME=Akili ${{ github.ref_name }} (pre-release, pending approval)" >> $GITHUB_OUTPUT
+            echo "IS_PRERELEASE=true" >> $GITHUB_OUTPUT
+            echo "MAKE_LATEST=false" >> $GITHUB_OUTPUT
+          else
+            SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+            echo "TAG_NAME=build-${SHORT_SHA}" >> $GITHUB_OUTPUT
+            echo "RELEASE_NAME=Automated Build (${SHORT_SHA})" >> $GITHUB_OUTPUT
+            echo "IS_PRERELEASE=true" >> $GITHUB_OUTPUT
+            echo "MAKE_LATEST=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Create GitHub Release Placeholder
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag_info.outputs.TAG_NAME }}
+          name: ${{ steps.tag_info.outputs.RELEASE_NAME }}
+          prerelease: ${{ steps.tag_info.outputs.IS_PRERELEASE }}
+          make_latest: ${{ steps.tag_info.outputs.MAKE_LATEST }}
+          body: |
+            Automated multi-platform build generated from commit `${{ github.sha }}`.
+
+            *This is a pre-release placeholder. Feel free to edit this title and description with your release notes right from the GitHub Releases UI.*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─── Android APK (split per ABI) ───────────────────────
+  build-apk-split:
+    needs: [prepare-release]
+    runs-on: ubuntu-latest
+    env:
+      FLET_ANDROID_SIGNING_KEY_STORE: ${{ github.workspace }}/kiri_keystore.jks
+      FLET_ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      FLET_ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+      - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 17
+      - name: Decode Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_BASE64" | base64 --decode > kiri_keystore.jks
+      - name: Build APK (split per ABI)
+        run: uv run flet build apk --yes --project akili --product "Akili" --org ng.kiri --company "Kiri Research Labs" --build-version ${{ env.BUILD_VERSION }} --build-number ${{ env.BUILD_NUMBER }} --split-per-abi -v
+      - name: Patch Flutter project (notifications receivers/service)
+        run: uv run flet-android-notifications-patch --project-root build/flutter
+      - name: Rebuild APK (desugaring + notification receivers)
+        run: cd build/flutter && flutter build apk --release --split-per-abi
+      - name: Size report
+        run: ls -lh build/flutter/build/app/outputs/flutter/apk/*/*.apk
+      - name: Upload directly to GitHub Release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare-release.outputs.TAG_NAME }}
+          files: build/flutter/build/app/outputs/flutter/apk/*/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─── Android AAB (Play Store) ───────────────────────────
+  build-aab:
+    needs: [prepare-release]
+    runs-on: ubuntu-latest
+    env:
+      FLET_ANDROID_SIGNING_KEY_STORE: ${{ github.workspace }}/kiri_keystore.jks
+      FLET_ANDROID_SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      FLET_ANDROID_SIGNING_KEY_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      FLET_ANDROID_SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+      - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 17
+      - name: Decode Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: echo "$KEYSTORE_BASE64" | base64 --decode > kiri_keystore.jks
+      - name: Build AAB
+        run: uv run flet build aab --yes --project akili --product "Akili" --org ng.kiri --company "Kiri Research Labs" --build-version ${{ env.BUILD_VERSION }} --build-number ${{ env.BUILD_NUMBER }} -v
+      - name: Patch Flutter project (notifications receivers/service)
+        run: uv run flet-android-notifications-patch --project-root build/flutter
+      - name: Rebuild AAB (desugaring + notification receivers)
+        run: cd build/flutter && flutter build appbundle --release
+      - name: Upload directly to GitHub Release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare-release.outputs.TAG_NAME }}
+          files: build/flutter/build/app/outputs/bundle/release/*.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─── Windows (Automated .exe Setup Installer) ──────────────
+  build-windows:
+    needs: [prepare-release]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Build Windows Portable
+        run: uv run flet build windows --yes --project akili --product "Akili" --org ng.kiri --company "Kiri Research Labs" --build-version ${{ env.BUILD_VERSION }} --build-number ${{ env.BUILD_NUMBER }} -v
+
+      - name: Generate Icon for Installer
+        run: |
+          uv pip install pillow
+          uv run python -c "from PIL import Image; Image.open('src/assets/icon.png').save('src/assets/icon.ico', format='ICO', sizes=[(256, 256)])"
+
+      - name: Build Windows Installer (Inno Setup)
+        run: |
+          $IssContent = @"
+          [Setup]
+          AppId={{A7C4E2B1-8F3D-4A5E-9C1B-2D4E6F8A0C2E4}}
+          AppName=Akili
+          AppVersion=${{ env.BUILD_VERSION }}
+          AppPublisher=Kiri Research Labs
+          AppPublisherURL=https://kiri.ng
+          AppSupportURL=https://kiri.ng/support
+          AppUpdatesURL=https://kiri.ng/updates
+          AppCopyright=Copyright (C) 2026 Kiri Research Labs
+          DefaultDirName={autopf}\Akili
+          DefaultGroupName=Akili
+          OutputDir=.\build\installer
+          OutputBaseFilename=AkiliSetup
+          Compression=lzma2
+          SolidCompression=yes
+          WizardStyle=modern
+          ArchitecturesAllowed=x64
+          ArchitecturesInstallIn64BitMode=x64
+          PrivilegesRequired=lowest
+          SetupIconFile=.\src\assets\icon.ico
+          UninstallDisplayIcon={app}\akili.exe
+          CloseApplications=yes
+          AppMutex=AKILI_Mutex
+
+          [Files]
+          Source: "build\windows\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+          [Icons]
+          Name: "{group}\Akili"; Filename: "{app}\akili.exe"
+          Name: "{autodesktop}\Akili"; Filename: "{app}\akili.exe"; Tasks: desktopicon
+
+          [Tasks]
+          Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"; Flags: unchecked
+          "@
+          Set-Content -Path "installer.iss" -Value $IssContent -Encoding UTF8
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+
+      - name: Upload directly to GitHub Release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare-release.outputs.TAG_NAME }}
+          files: build/installer/AkiliSetup.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─── Linux (.deb, .rpm & Universal .tar.gz) ────────────────
+  build-linux:
+    needs: [prepare-release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install Linux Build Dependencies & Packaging Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev rpm ruby ruby-dev
+          sudo gem install --no-document fpm
+      - name: Build Linux Bundle
+        run: uv run flet build linux --yes --project akili --product "Akili" --org ng.kiri --company "Kiri Research Labs" --build-version ${{ env.BUILD_VERSION }} --build-number ${{ env.BUILD_NUMBER }} -v
+      - name: Create Linux Packages (.deb, .rpm, .tar.gz)
+        run: |
+          mkdir -p build/dist
+
+          # 1. Universal Portable .tar.gz
+          tar -czf build/dist/Akili.tar.gz -C build/linux .
+
+          # 2. Stage filesystem tree for rich .deb and .rpm packages
+          mkdir -p pkg_root/usr/lib/akili pkg_root/usr/bin pkg_root/usr/share/applications pkg_root/usr/share/icons/hicolor/256x256/apps pkg_root/usr/share/pixmaps pkg_root/usr/share/metainfo
+          cp -a build/linux/* pkg_root/usr/lib/akili/
+          chmod +x pkg_root/usr/lib/akili/akili
+          ln -s /usr/lib/akili/akili pkg_root/usr/bin/akili
+
+          # Icons
+          cp src/assets/icon.png pkg_root/usr/share/icons/hicolor/256x256/apps/akili.png
+          cp src/assets/icon.png pkg_root/usr/share/pixmaps/akili.png
+
+          # Desktop entry
+          cat <<EOF > pkg_root/usr/share/applications/akili.desktop
+          [Desktop Entry]
+          Version=1.0
+          Name=Akili
+          GenericName=After-School Learning App
+          Comment=AI-powered courses, quizzes, and tutoring for every student
+          Exec=/usr/bin/akili
+          Icon=akili
+          Terminal=false
+          Type=Application
+          Categories=Education;
+          Keywords=study;learn;school;quiz;tutor;
+          StartupNotify=true
+          StartupWMClass=akili
+          EOF
+
+          # AppStream / AppData metainfo XML
+          cat <<EOF > pkg_root/usr/share/metainfo/ng.kiri.akili.metainfo.xml
+          <?xml version="1.0" encoding="UTF-8"?>
+          <component type="desktop-application">
+            <id>ng.kiri.akili</id>
+            <metadata_license>MIT</metadata_license>
+            <project_license>MIT</project_license>
+            <name>Akili</name>
+            <summary>After-school learning app with AI courses, quizzes, and tutoring</summary>
+            <description>
+              <p>Akili builds courses around your class and country, then teaches with AI lessons, quizzes, and a tutor that cites its sources:</p>
+              <ul>
+                <li>AI-generated courses, lessons, quizzes, and mock exams</li>
+                <li>Tutor chat with web search, videos, voice, and photo answers</li>
+                <li>XP, streaks, badges, timetables, and a parent overview</li>
+                <li>Offline-first: lessons and progress stay on your device</li>
+              </ul>
+            </description>
+            <launchable type="desktop-id">akili.desktop</launchable>
+            <url type="homepage">https://kiri.ng</url>
+            <developer_name>Kiri Research Labs</developer_name>
+          </component>
+          EOF
+
+          # Build rich .deb using fpm
+          fpm -s dir -t deb -n akili -v ${{ env.BUILD_VERSION }} --iteration ${{ env.BUILD_NUMBER }} \
+              --architecture amd64 \
+              --description "After-school learning app: AI courses, quizzes, and tutoring for every student." \
+              --maintainer "Kiri Research Labs <support@kiri.ng>" \
+              --url "https://kiri.ng" \
+              --category "education" \
+              -p build/dist/Akili.deb \
+              -C pkg_root .
+
+          # Build rich .rpm using fpm
+          fpm -s dir -t rpm -n akili -v ${{ env.BUILD_VERSION }} --iteration ${{ env.BUILD_NUMBER }} \
+              --architecture x86_64 \
+              --description "After-school learning app: AI courses, quizzes, and tutoring for every student." \
+              --maintainer "Kiri Research Labs <support@kiri.ng>" \
+              --url "https://kiri.ng" \
+              --category "Education" \
+              -p build/dist/Akili.rpm \
+              -C pkg_root .
+
+      - name: Upload directly to GitHub Release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare-release.outputs.TAG_NAME }}
+          files: build/dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
